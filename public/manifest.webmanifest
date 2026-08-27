@@ -1,19 +1,19 @@
 {
-  "id": "/",
+  "id": ".",
   "name": "PokéBinder",
   "short_name": "PokéBinder",
   "description": "Seguimiento personal de colección Pokémon TCG.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#111715",
+  "theme_color": "#ffffff",
   "categories": ["games", "lifestyle", "utilities"],
   "icons": [
     {
-      "src": "/pokebinder.svg",
+      "src": "pokebinder.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
@@ -23,10 +23,10 @@
     {
       "name": "Mi colección",
       "short_name": "Colección",
-      "url": "/collection",
+      "url": "collection",
       "icons": [
         {
-          "src": "/pokebinder.svg",
+          "src": "pokebinder.svg",
           "sizes": "any",
           "type": "image/svg+xml"
         }
@@ -35,10 +35,10 @@
     {
       "name": "Álbumes",
       "short_name": "Álbumes",
-      "url": "/albums",
+      "url": "albums",
       "icons": [
         {
-          "src": "/pokebinder.svg",
+          "src": "pokebinder.svg",
           "sizes": "any",
           "type": "image/svg+xml"
         }
@@ -47,10 +47,10 @@
     {
       "name": "Expansiones",
       "short_name": "Sets",
-      "url": "/expansions",
+      "url": "expansions",
       "icons": [
         {
-          "src": "/pokebinder.svg",
+          "src": "pokebinder.svg",
           "sizes": "any",
           "type": "image/svg+xml"
         }

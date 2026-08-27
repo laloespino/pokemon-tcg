@@ -1,9 +1,11 @@
-const CACHE_NAME = "pokebinder-v3"
+const CACHE_NAME = "pokebinder-v4"
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, "")
+const fromBase = (path) => `${BASE_PATH}${path}`
 const APP_SHELL = [
-  "/",
-  "/offline.html",
-  "/manifest.webmanifest",
-  "/pokebinder.svg",
+  fromBase("/"),
+  fromBase("/offline.html"),
+  fromBase("/manifest.webmanifest"),
+  fromBase("/pokebinder.svg"),
 ]
 
 self.addEventListener("install", (event) => {
@@ -50,13 +52,15 @@ self.addEventListener("fetch", (event) => {
       fetch(event.request).catch(() =>
         caches
           .match(event.request)
-          .then((response) => response || caches.match("/offline.html"))
+          .then(
+            (response) => response || caches.match(fromBase("/offline.html"))
+          )
       )
     )
     return
   }
 
-  if (url.pathname.startsWith("/assets/")) {
+  if (url.pathname.startsWith(fromBase("/assets/"))) {
     event.respondWith(
       caches.match(event.request).then(
         (cachedResponse) =>
@@ -97,7 +101,9 @@ self.addEventListener("fetch", (event) => {
       .catch(() =>
         caches
           .match(event.request)
-          .then((response) => response || caches.match("/offline.html"))
+          .then(
+            (response) => response || caches.match(fromBase("/offline.html"))
+          )
       )
   )
 })

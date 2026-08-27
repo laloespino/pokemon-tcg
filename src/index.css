@@ -135,6 +135,12 @@
     touch-action: manipulation;
     -webkit-font-smoothing: antialiased;
   }
+  input,
+  textarea,
+  select {
+    color: var(--foreground);
+    caret-color: var(--primary);
+  }
   button,
   a,
   input,

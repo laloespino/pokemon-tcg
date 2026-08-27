@@ -116,6 +116,11 @@ export function AlbumsPage() {
   }
 
   const normalizedQuery = query.trim().toLowerCase()
+  const showOwnedAlbum =
+    !normalizedQuery ||
+    "mi colección".includes(normalizedQuery) ||
+    "coleccion".includes(normalizedQuery) ||
+    "propiedad".includes(normalizedQuery)
   const showWishlistAlbum =
     !normalizedQuery || "lista de deseos".includes(normalizedQuery)
   const filteredAlbums = normalizedQuery
@@ -123,7 +128,8 @@ export function AlbumsPage() {
         album.name.toLowerCase().includes(normalizedQuery)
       )
     : albums
-  const hasResults = showWishlistAlbum || filteredAlbums.length > 0
+  const hasResults =
+    showOwnedAlbum || showWishlistAlbum || filteredAlbums.length > 0
 
   return (
     <Page>
@@ -311,6 +317,39 @@ export function AlbumsPage() {
 
       {hasResults ? (
         <div className="space-y-2.5">
+          {showOwnedAlbum && (
+            <div className="grid min-h-20 grid-cols-[4rem_1fr_auto] items-center gap-3 rounded-xl border bg-card p-2 pr-3">
+              <button
+                type="button"
+                onClick={() => navigate("/albums/owned")}
+                className="flex aspect-square items-center justify-center rounded-2xl bg-muted text-muted-foreground"
+                aria-label="Abrir mi colección"
+              >
+                <AlbumCover name="Mi colección" variant="owned" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate("/albums/owned")}
+                className="min-w-0 py-1 text-left"
+              >
+                <p className="truncate text-base font-bold">Mi colección</p>
+
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {ownedCardIds.length} cartas
+                  </span>
+
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full w-full rounded-full bg-emerald-500/45" />
+                  </div>
+                </div>
+              </button>
+
+              <div className="size-8" aria-hidden="true" />
+            </div>
+          )}
+
           {showWishlistAlbum && (
             <div className="grid min-h-20 grid-cols-[4rem_1fr_auto] items-center gap-3 rounded-xl border bg-card p-2 pr-3">
               <button
