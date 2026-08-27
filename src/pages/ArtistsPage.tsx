@@ -1,21 +1,86 @@
-import { useState } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
+
 import { useNavigate } from "react-router-dom"
 
 import { ArtistCard } from "@/components/artists/ArtistCard"
 import { ArtistSearch } from "@/components/artists/ArtistSearch"
 
-import { artists } from "@/data/artists"
+import { getArtists } from "@/services/pokemon-service"
+
+import type { PokemonArtist } from "@/types/artist"
 
 export function ArtistsPage() {
   const navigate = useNavigate()
 
-  const [search, setSearch] = useState("")
+  const [artists, setArtists] =
+    useState<PokemonArtist[]>([])
 
-  const filteredArtists = artists.filter((artist) =>
-    artist.name
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  )
+  const [search, setSearch] =
+    useState("")
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadArtists() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const result =
+          await getArtists()
+
+        if (!cancelled) {
+          setArtists(result)
+        }
+      } catch (error) {
+        console.error(error)
+
+        if (!cancelled) {
+          setError(
+            "Could not load artists.",
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadArtists()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const filteredArtists =
+    useMemo(() => {
+      const query = search
+        .trim()
+        .toLowerCase()
+
+      if (!query) {
+        return []
+      }
+
+      return artists.filter(
+        (artist) =>
+          artist.name
+            .toLowerCase()
+            .includes(query),
+      )
+    }, [artists, search])
 
   return (
     <div>
@@ -34,25 +99,66 @@ export function ArtistsPage() {
         onChange={setSearch}
       />
 
-      <div className="mt-4 space-y-2">
-        {filteredArtists.map((artist) => (
-          <ArtistCard
-            key={artist.id}
-            artist={artist}
-            onClick={() =>
-              navigate(`/artists/${artist.id}`)
-            }
-          />
-        ))}
+      {loading && (
+        <div className="py-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            Loading artists...
+          </p>
+        </div>
+      )}
 
-        {filteredArtists.length === 0 && (
-          <div className="py-10 text-center">
+      {error && (
+        <div className="py-12 text-center">
+          <p className="text-sm text-destructive">
+            {error}
+          </p>
+        </div>
+      )}
+
+      {!loading &&
+        !error &&
+        !search.trim() && (
+          <div className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              Search for an artist.
+            </p>
+          </div>
+        )}
+
+      {!loading &&
+        !error &&
+        search.trim() &&
+        filteredArtists.length ===
+        0 && (
+          <div className="py-12 text-center">
             <p className="text-sm text-muted-foreground">
               No artists found.
             </p>
           </div>
         )}
-      </div>
+
+      {!loading &&
+        !error &&
+        filteredArtists.length >
+        0 && (
+          <div className="mt-4 space-y-2">
+            {filteredArtists.map(
+              (artist) => (
+                <ArtistCard
+                  key={artist.name}
+                  artist={artist}
+                  onClick={() =>
+                    navigate(
+                      `/artists/${encodeURIComponent(
+                        artist.name,
+                      )}`,
+                    )
+                  }
+                />
+              ),
+            )}
+          </div>
+        )}
     </div>
   )
 }

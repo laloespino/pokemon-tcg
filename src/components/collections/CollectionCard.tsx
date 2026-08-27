@@ -17,8 +17,8 @@ export function CollectionCard({
     (state) => state.ownedCardIds,
   )
 
-  const owned = collection.cardIds.filter((id) =>
-    ownedCardIds.includes(id),
+  const owned = ownedCardIds.filter((cardId) =>
+    cardId.startsWith(`${collection.setId}-`),
   ).length
 
   return (
@@ -27,41 +27,31 @@ export function CollectionCard({
       onClick={onClick}
       className="
         w-full
-        overflow-hidden
         rounded-xl
         border
         bg-card
+        p-4
         text-left
-        transition
+        transition-colors
         hover:bg-accent
       "
     >
-      {collection.image && (
-        <img
-          src={collection.image}
-          alt={collection.name}
-          className="aspect-[16/9] w-full object-cover"
-        />
-      )}
+      <div className="mb-4">
+        <h2 className="font-semibold">
+          {collection.name}
+        </h2>
 
-      <div className="space-y-3 p-4">
-        <div>
-          <h2 className="font-semibold">
-            {collection.name}
-          </h2>
-
-          {collection.description && (
-            <p className="text-sm text-muted-foreground">
-              {collection.description}
-            </p>
-          )}
-        </div>
-
-        <CollectionProgress
-          owned={owned}
-          total={collection.cardIds.length}
-        />
+        {collection.description && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {collection.description}
+          </p>
+        )}
       </div>
+
+      <CollectionProgress
+        owned={owned}
+        total={collection.total}
+      />
     </button>
   )
 }

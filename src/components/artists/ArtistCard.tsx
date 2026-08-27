@@ -1,7 +1,8 @@
 import { Heart } from "lucide-react"
 
-import type { PokemonArtist } from "@/types/artist"
 import { useCollectionStore } from "@/store/collection-store"
+
+import type { PokemonArtist } from "@/types/artist"
 
 type ArtistCardProps = {
   artist: PokemonArtist
@@ -13,12 +14,16 @@ export function ArtistCard({
   onClick,
 }: ArtistCardProps) {
   const favorite = useCollectionStore((state) =>
-    state.favoriteArtists.includes(artist.name),
+    state.favoriteArtists.includes(
+      artist.name,
+    ),
   )
 
-  const toggleFavoriteArtist = useCollectionStore(
-    (state) => state.toggleFavoriteArtist,
-  )
+  const toggleFavoriteArtist =
+    useCollectionStore(
+      (state) =>
+        state.toggleFavoriteArtist,
+    )
 
   return (
     <div
@@ -38,6 +43,7 @@ export function ArtistCard({
         className="
           min-w-0
           flex-1
+          py-1
           text-left
         "
       >
@@ -46,14 +52,16 @@ export function ArtistCard({
         </p>
 
         <p className="text-sm text-muted-foreground">
-          {artist.cardCount} cards
+          View cards
         </p>
       </button>
 
       <button
         type="button"
         onClick={() =>
-          toggleFavoriteArtist(artist.name)
+          toggleFavoriteArtist(
+            artist.name,
+          )
         }
         aria-label={`Favorite ${artist.name}`}
         className="
@@ -69,7 +77,11 @@ export function ArtistCard({
       >
         <Heart
           className="size-5"
-          fill={favorite ? "currentColor" : "none"}
+          fill={
+            favorite
+              ? "currentColor"
+              : "none"
+          }
         />
       </button>
     </div>

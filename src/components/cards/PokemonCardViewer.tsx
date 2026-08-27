@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react"
-import { Check, Plus } from "lucide-react"
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react"
+
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-  type CarouselApi,
-} from "@/components/ui/carousel"
+
 import {
   Dialog,
   DialogContent,
@@ -19,8 +22,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-import type { PokemonCard } from "@/types/card"
+import { getCardById } from "@/services/pokemon-service"
+
 import { useCollectionStore } from "@/store/collection-store"
+
+import type { PokemonCard } from "@/types/card"
 
 type PokemonCardViewerProps = {
   cards: PokemonCard[]
@@ -34,28 +40,144 @@ export function PokemonCardViewer({
   onClose,
 }: PokemonCardViewerProps) {
   const initialIndex = Math.max(
-    cards.findIndex((card) => card.id === initialCardId),
+    cards.findIndex(
+      (card) => card.id === initialCardId,
+    ),
     0,
   )
 
-  const [api, setApi] = useState<CarouselApi>()
-  const [current, setCurrent] = useState(initialIndex + 1)
+  const [currentIndex, setCurrentIndex] =
+    useState(initialIndex)
+
+  const [details, setDetails] = useState<
+    Record<string, PokemonCard>
+  >({})
+
+  const [loadingDetails, setLoadingDetails] =
+    useState(false)
+
+  const touchStartX = useRef<number | null>(null)
+
+  const briefCard = cards[currentIndex]
+
+  const currentCard = briefCard
+    ? details[briefCard.id] ?? briefCard
+    : undefined
 
   useEffect(() => {
-    if (!api) return
-
-    const updateCurrent = () => {
-      setCurrent(api.selectedScrollSnap() + 1)
+    if (!briefCard) {
+      return
     }
 
-    updateCurrent()
+    if (details[briefCard.id]) {
+      return
+    }
 
-    api.on("select", updateCurrent)
+    let cancelled = false
+
+    async function loadDetails() {
+      try {
+        setLoadingDetails(true)
+
+        const card = await getCardById(
+          briefCard.id,
+        )
+
+        if (!cancelled && card) {
+          setDetails((previous) => ({
+            ...previous,
+            [briefCard.id]: card,
+          }))
+        }
+      } catch (error) {
+        console.error(
+          "Could not load card details:",
+          error,
+        )
+      } finally {
+        if (!cancelled) {
+          setLoadingDetails(false)
+        }
+      }
+    }
+
+    loadDetails()
 
     return () => {
-      api.off("select", updateCurrent)
+      cancelled = true
     }
-  }, [api])
+  }, [briefCard?.id])
+
+  const owned = useCollectionStore((state) =>
+    currentCard
+      ? state.ownedCardIds.includes(
+        currentCard.id,
+      )
+      : false,
+  )
+
+  const toggleOwnedCard =
+    useCollectionStore(
+      (state) =>
+        state.toggleOwnedCard,
+    )
+
+  function previousCard() {
+    setCurrentIndex((current) =>
+      current === 0
+        ? cards.length - 1
+        : current - 1,
+    )
+  }
+
+  function nextCard() {
+    setCurrentIndex((current) =>
+      current === cards.length - 1
+        ? 0
+        : current + 1,
+    )
+  }
+
+  function handleTouchStart(
+    event: React.TouchEvent,
+  ) {
+    touchStartX.current =
+      event.touches[0].clientX
+  }
+
+  function handleTouchEnd(
+    event: React.TouchEvent,
+  ) {
+    if (touchStartX.current === null) {
+      return
+    }
+
+    const endX =
+      event.changedTouches[0].clientX
+
+    const difference =
+      touchStartX.current - endX
+
+    const minimumSwipe = 50
+
+    if (difference > minimumSwipe) {
+      nextCard()
+    }
+
+    if (difference < -minimumSwipe) {
+      previousCard()
+    }
+
+    touchStartX.current = null
+  }
+
+  if (!currentCard) {
+    return null
+  }
+
+  const image =
+    currentCard.images.large ||
+    currentCard.images.small
 
   return (
     <Dialog
@@ -68,206 +190,228 @@ export function PokemonCardViewer({
     >
       <DialogContent
         className="
+          max-h-[calc(100dvh-1rem)]
           w-[calc(100%-1rem)]
           max-w-[430px]
-          max-h-[calc(100dvh-1rem)]
           overflow-y-auto
           rounded-2xl
-          p-3
-
-          sm:max-w-4xl
-          sm:p-6
+          p-4
+          sm:max-w-lg
         "
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Pokémon card viewer</DialogTitle>
+          <DialogTitle>
+            {currentCard.name}
+          </DialogTitle>
 
           <DialogDescription>
-            Browse cards and manage your collection.
+            Pokémon card viewer
           </DialogDescription>
         </DialogHeader>
 
-        <Carousel
-          setApi={setApi}
-          opts={{
-            startIndex: initialIndex,
-            loop: true,
-          }}
-          className="w-full"
+        {/* CARD IMAGE */}
+
+        <div
+          className="relative"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
-          <CarouselContent>
-            {cards.map((card) => (
-              <CarouselItem key={card.id}>
-                <PokemonCardDetails card={card} />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
+          <div className="mx-auto w-full max-w-[270px] px-4">
+            {image ? (
+              <img
+                src={image}
+                alt={currentCard.name}
+                className="
+                  block
+                  h-auto
+                  w-full
+                  rounded-xl
+                  object-contain
+                "
+                onError={(event) => {
+                  console.error(
+                    "Could not load image:",
+                    event.currentTarget.src,
+                  )
+                }}
+              />
+            ) : (
+              <div
+                className="
+                  flex
+                  aspect-[245/337]
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-muted
+                  text-sm
+                  text-muted-foreground
+                "
+              >
+                No image available
+              </div>
+            )}
+          </div>
 
           {cards.length > 1 && (
             <>
-              <CarouselPrevious
+              <button
+                type="button"
+                onClick={previousCard}
+                aria-label="Previous card"
                 className="
-                  left-1
-                  top-[34%]
-                  size-9
-                  sm:left-2
-                  sm:top-1/2
+                  absolute
+                  left-0
+                  top-1/2
+                  flex
+                  size-10
+                  -translate-y-1/2
+                  items-center
+                  justify-center
+                  rounded-full
+                  border
+                  bg-background/90
+                  shadow
                 "
-              />
+              >
+                <ChevronLeft className="size-5" />
+              </button>
 
-              <CarouselNext
+              <button
+                type="button"
+                onClick={nextCard}
+                aria-label="Next card"
                 className="
-                  right-1
-                  top-[34%]
-                  size-9
-                  sm:right-2
-                  sm:top-1/2
+                  absolute
+                  right-0
+                  top-1/2
+                  flex
+                  size-10
+                  -translate-y-1/2
+                  items-center
+                  justify-center
+                  rounded-full
+                  border
+                  bg-background/90
+                  shadow
                 "
-              />
+              >
+                <ChevronRight className="size-5" />
+              </button>
             </>
           )}
-        </Carousel>
+        </div>
 
-        <p className="pb-1 text-center text-xs text-muted-foreground sm:text-sm">
-          {current} / {cards.length}
-        </p>
-      </DialogContent>
-    </Dialog>
-  )
-}
+        {/* CARD NAME */}
 
-function PokemonCardDetails({
-  card,
-}: {
-  card: PokemonCard
-}) {
-  const owned = useCollectionStore((state) =>
-    state.ownedCardIds.includes(card.id),
-  )
-
-  const toggleOwnedCard = useCollectionStore(
-    (state) => state.toggleOwnedCard,
-  )
-
-  return (
-    <div
-      className="
-        grid
-        min-w-0
-        grid-cols-1
-        gap-4
-        px-8
-        py-2
-
-        sm:px-12
-
-        md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]
-        md:items-center
-        md:gap-8
-      "
-    >
-      <div className="mx-auto w-full max-w-[250px] sm:max-w-[300px] md:max-w-sm">
-        <img
-          src={card.images.large}
-          alt={card.name}
-          className="
-            block
-            h-auto
-            w-full
-            rounded-xl
-            object-contain
-          "
-        />
-      </div>
-
-      <div className="min-w-0 space-y-3 sm:space-y-5">
-        <div className="text-center md:text-left">
-          <h2
-            className="
-              truncate
-              text-xl
-              font-bold
-
-              sm:text-2xl
-              md:text-3xl
-            "
-          >
-            {card.name}
+        <div className="mt-3 text-center">
+          <h2 className="text-xl font-bold">
+            {currentCard.name}
           </h2>
 
           <p className="mt-1 text-sm text-muted-foreground">
-            {card.set.name} · #{card.number}
+            {currentCard.set
+              ? `${currentCard.set.name} · #${currentCard.number}`
+              : `#${currentCard.number}`}
           </p>
+
+          {loadingDetails && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Loading details...
+            </p>
+          )}
         </div>
 
-        <div className="flex flex-wrap justify-center gap-2 md:justify-start">
-          {card.rarity && (
+        {/* BADGES */}
+
+        <div className="flex flex-wrap justify-center gap-2">
+          {currentCard.rarity && (
             <Badge variant="secondary">
-              {card.rarity}
+              {currentCard.rarity}
             </Badge>
           )}
 
-          {card.artist && (
+          {currentCard.artist && (
             <Badge variant="outline">
-              {card.artist}
+              {currentCard.artist}
             </Badge>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-1">
-          <div>
-            <p className="text-xs text-muted-foreground">
-              Set
-            </p>
+        {/* DETAILS */}
 
-            <p className="truncate font-medium">
-              {card.set.name}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          {currentCard.set && (
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Set
+              </p>
 
-          {card.artist && (
+              <p className="font-medium">
+                {currentCard.set.name}
+              </p>
+            </div>
+          )}
+
+          {currentCard.artist && (
             <div>
               <p className="text-xs text-muted-foreground">
                 Artist
               </p>
 
-              <p className="truncate font-medium">
-                {card.artist}
+              <p className="font-medium">
+                {currentCard.artist}
               </p>
             </div>
           )}
 
-          {card.rarity && (
+          {currentCard.rarity && (
             <div>
               <p className="text-xs text-muted-foreground">
                 Rarity
               </p>
 
-              <p className="truncate font-medium">
-                {card.rarity}
+              <p className="font-medium">
+                {currentCard.rarity}
               </p>
             </div>
           )}
         </div>
 
+        {/* OWNED BUTTON */}
+
         <Button
-          variant={owned ? "secondary" : "default"}
-          onClick={() => toggleOwnedCard(card.id)}
+          variant={
+            owned
+              ? "secondary"
+              : "default"
+          }
+          onClick={() =>
+            toggleOwnedCard(
+              currentCard.id,
+            )
+          }
           className="h-11 w-full"
         >
           {owned ? (
             <>
-              <Check />
+              <Check className="size-4" />
               Owned
             </>
           ) : (
             <>
-              <Plus />
+              <Plus className="size-4" />
               Add to my collection
             </>
           )}
         </Button>
-      </div>
-    </div>
+
+        {/* COUNTER */}
+
+        <p className="text-center text-xs text-muted-foreground">
+          {currentIndex + 1} / {cards.length}
+        </p>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -6,48 +6,60 @@ import {
 
 import { AppLayout } from "@/components/layout/AppLayout"
 
-import { PokedexPage } from "@/pages/PokedexPage"
-import { CollectionPage } from "@/pages/CollectionPage"
-
-import { ArtistsPage } from "@/pages/ArtistsPage"
 import { ArtistPage } from "@/pages/ArtistPage"
-
-import { MyCollectionPage } from "@/pages/MyCollectionPage"
+import { ArtistsPage } from "@/pages/ArtistsPage"
+import { CollectionPage } from "@/pages/CollectionPage"
 import { FavoritesPage } from "@/pages/FavoritesPage"
+import { MyCollectionPage } from "@/pages/MyCollectionPage"
+import { PokedexPage } from "@/pages/PokedexPage"
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<AppLayout />}>
+        <Route
+          element={<AppLayout />}
+        >
           <Route
             path="/"
-            element={<PokedexPage />}
+            element={
+              <PokedexPage />
+            }
           />
 
           <Route
             path="/collections/:collectionId"
-            element={<CollectionPage />}
+            element={
+              <CollectionPage />
+            }
           />
 
           <Route
             path="/artists"
-            element={<ArtistsPage />}
+            element={
+              <ArtistsPage />
+            }
           />
 
           <Route
-            path="/artists/:artistId"
-            element={<ArtistPage />}
+            path="/artists/:artistName"
+            element={
+              <ArtistPage />
+            }
           />
 
           <Route
             path="/collection"
-            element={<MyCollectionPage />}
+            element={
+              <MyCollectionPage />
+            }
           />
 
           <Route
             path="/favorites"
-            element={<FavoritesPage />}
+            element={
+              <FavoritesPage />
+            }
           />
         </Route>
       </Routes>

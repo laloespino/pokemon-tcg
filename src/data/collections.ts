@@ -4,26 +4,9 @@ export const collections: PokemonCollection[] = [
   {
     id: "base-set",
     name: "Base Set",
-    description: "The original Pokémon TCG set.",
+    description: "The original Pokémon Trading Card Game set.",
     type: "set",
-
-    cardIds: [
-      "base1-4",
-      "base1-44",
-      "base1-58",
-    ],
-  },
-
-  {
-    id: "original-151",
-    name: "Original 151",
-    description: "Collect cards for the original 151 Pokémon.",
-    type: "pokemon",
-
-    cardIds: [
-      "base1-4",
-      "base1-44",
-      "base1-58",
-    ],
+    setId: "base1",
+    total: 102,
   },
 ]

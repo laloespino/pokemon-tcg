@@ -6,7 +6,7 @@ export type PokemonCard = {
   artist?: string
   rarity?: string
 
-  set: {
+  set?: {
     id: string
     name: string
     series?: string
