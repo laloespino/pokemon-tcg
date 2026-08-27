@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 
 import { ArtistCard } from "@/components/artists/ArtistCard"
 import { ArtistSearch } from "@/components/artists/ArtistSearch"
+import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 
 import { getArtists, getCardsByArtist } from "@/services/pokemon-service"
 import { useCollectionStore } from "@/store/collection-store"
@@ -136,31 +137,17 @@ export function ArtistsPage() {
   }, [artistStats, filteredArtists])
 
   return (
-    <div>
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold">Artistas</h1>
-      </div>
+    <Page>
+      <PageHeader title="Artistas" align="center" />
 
-      <ArtistSearch value={search} onChange={setSearch} className="mb-6" />
+      <ArtistSearch value={search} onChange={setSearch} />
 
-      {loading && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">Cargando artistas...</p>
-        </div>
-      )}
+      {loading && <PageState title="Cargando artistas..." size="compact" />}
 
-      {error && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" size="compact" />}
 
       {!loading && !error && filteredArtists.length === 0 && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            No encontramos artistas.
-          </p>
-        </div>
+        <PageState title="No encontramos artistas." size="compact" />
       )}
 
       {!loading && !error && filteredArtists.length > 0 && (
@@ -182,6 +169,6 @@ export function ArtistsPage() {
           ))}
         </div>
       )}
-    </div>
+    </Page>
   )
 }

@@ -12,12 +12,14 @@ type CollectionStore = {
   wishlistCardIds: string[]
   favoriteArtists: string[]
   favoriteExpansionIds: string[]
+  favoritePokemonIds: number[]
   albums: Album[]
 
   toggleOwnedCard: (cardId: string) => void
   toggleWishlistCard: (cardId: string) => void
   toggleFavoriteArtist: (artist: string) => void
   toggleFavoriteExpansion: (expansionId: string) => void
+  toggleFavoritePokemon: (pokemonId: number) => void
   createAlbum: (name: string) => string
   deleteAlbum: (albumId: string) => void
   renameAlbum: (albumId: string, name: string) => void
@@ -32,6 +34,7 @@ export const useCollectionStore = create<CollectionStore>()(
       wishlistCardIds: [],
       favoriteArtists: [],
       favoriteExpansionIds: [],
+      favoritePokemonIds: [],
       albums: [],
 
       toggleOwnedCard: (cardId) =>
@@ -80,6 +83,17 @@ export const useCollectionStore = create<CollectionStore>()(
             favoriteExpansionIds: favorite
               ? state.favoriteExpansionIds.filter((id) => id !== expansionId)
               : [...state.favoriteExpansionIds, expansionId],
+          }
+        }),
+
+      toggleFavoritePokemon: (pokemonId) =>
+        set((state) => {
+          const favorite = state.favoritePokemonIds.includes(pokemonId)
+
+          return {
+            favoritePokemonIds: favorite
+              ? state.favoritePokemonIds.filter((id) => id !== pokemonId)
+              : [...state.favoritePokemonIds, pokemonId],
           }
         }),
 
@@ -181,6 +195,9 @@ export const useCollectionStore = create<CollectionStore>()(
           favoriteExpansionIds: Array.isArray(persisted.favoriteExpansionIds)
             ? persisted.favoriteExpansionIds
             : currentState.favoriteExpansionIds,
+          favoritePokemonIds: Array.isArray(persisted.favoritePokemonIds)
+            ? persisted.favoritePokemonIds
+            : currentState.favoritePokemonIds,
           albums: Array.isArray(persisted.albums)
             ? persisted.albums.map((album) => ({
                 id: album.id,

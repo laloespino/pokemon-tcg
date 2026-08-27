@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react"
 
-import { Link, useParams } from "react-router-dom"
+import { useParams } from "react-router-dom"
 
-import { ArrowLeft, Heart } from "lucide-react"
+import { Heart } from "lucide-react"
 
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
+import {
+  Page,
+  PageBackLink,
+  PageHeader,
+  PageState,
+} from "@/components/layout/PageLayout"
 
 import { getCardsByArtist } from "@/services/pokemon-service"
 
@@ -70,63 +76,42 @@ export function ArtistPage() {
   const owned = cards.filter((card) => ownedCardIds.includes(card.id)).length
 
   return (
-    <div>
-      <Link
-        to="/artists"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Artistas
-      </Link>
+    <Page>
+      <PageBackLink to="/artists">Artistas</PageBackLink>
 
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold">{name}</h1>
+      <PageHeader
+        title={name}
+        meta={!loading && !error ? `${owned} de ${cards.length} cartas` : null}
+        action={
+          <button
+            type="button"
+            onClick={() => toggleFavoriteArtist(name)}
+            aria-label={
+              favorite
+                ? `Quitar ${name} de favoritos`
+                : `Agregar ${name} a favoritos`
+            }
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-accent"
+          >
+            <Heart
+              className="size-5"
+              fill={favorite ? "currentColor" : "none"}
+            />
+          </button>
+        }
+      />
 
-          {!loading && !error && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {owned} de {cards.length} cartas
-            </p>
-          )}
-        </div>
+      {loading && <PageState title="Cargando cartas..." size="compact" />}
 
-        <button
-          type="button"
-          onClick={() => toggleFavoriteArtist(name)}
-          aria-label={
-            favorite
-              ? `Quitar ${name} de favoritos`
-              : `Agregar ${name} a favoritos`
-          }
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-accent"
-        >
-          <Heart className="size-5" fill={favorite ? "currentColor" : "none"} />
-        </button>
-      </div>
-
-      {loading && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">Cargando cartas...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" size="compact" />}
 
       {!loading && !error && cards.length === 0 && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            No encontramos cartas.
-          </p>
-        </div>
+        <PageState title="No encontramos cartas." size="compact" />
       )}
 
       {!loading && !error && cards.length > 0 && (
         <PokemonCardGrid cards={cards} />
       )}
-    </div>
+    </Page>
   )
 }

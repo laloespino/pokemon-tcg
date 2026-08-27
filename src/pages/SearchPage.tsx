@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
+import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 
@@ -31,13 +32,20 @@ export function SearchPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  function handleQueryChange(value: string) {
+    setQuery(value)
+
+    if (!value.trim()) {
+      setCards([])
+      setError(null)
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     const trimmedQuery = query.trim()
 
     if (!trimmedQuery) {
-      setCards([])
-      setError(null)
-      setLoading(false)
       return
     }
 
@@ -78,15 +86,14 @@ export function SearchPage() {
   }, [mode, query])
 
   return (
-    <div>
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold">Buscar</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Busca cartas por nombre, Pokémon o artista.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Buscar"
+        description="Busca cartas por nombre, Pokémon o artista."
+        align="center"
+      />
 
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {modes.map((item) => (
           <Button
             key={item.value}
@@ -102,32 +109,21 @@ export function SearchPage() {
 
       <SearchInput
         value={query}
-        onChange={setQuery}
+        onChange={handleQueryChange}
         placeholder="Buscar cartas"
-        className="mb-6"
       />
 
-      {loading && (
-        <div className="py-12 text-center text-sm text-muted-foreground">
-          Buscando...
-        </div>
-      )}
+      {loading && <PageState title="Buscando..." size="compact" />}
 
-      {error && (
-        <div className="py-12 text-center text-sm text-destructive">
-          {error}
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" size="compact" />}
 
       {!loading && !error && query.trim() && cards.length === 0 && (
-        <div className="py-12 text-center text-sm text-muted-foreground">
-          No encontramos cartas.
-        </div>
+        <PageState title="No encontramos cartas." size="compact" />
       )}
 
       {!loading && !error && cards.length > 0 && (
         <PokemonCardGrid cards={cards} />
       )}
-    </div>
+    </Page>
   )
 }

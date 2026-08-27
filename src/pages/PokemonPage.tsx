@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react"
-import { Link, useParams } from "react-router-dom"
-import { ArrowLeft } from "lucide-react"
+import { useParams } from "react-router-dom"
 
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
+import {
+  Page,
+  PageBackLink,
+  PageHeader,
+  PageState,
+} from "@/components/layout/PageLayout"
 
 import {
   getCardsByPokemonId,
@@ -70,60 +75,36 @@ export function PokemonPage() {
   const title = pokemon?.name ?? "Pokémon"
 
   return (
-    <div>
-      <Link
-        to="/"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Pokédex
-      </Link>
+    <Page>
+      <PageBackLink to="/">Pokédex</PageBackLink>
 
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold">{title}</h1>
+      <PageHeader
+        title={title}
+        meta={!loading && !error ? `${owned} de ${cards.length} cartas` : null}
+        action={
+          pokemon && (
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-full border">
+              <img
+                src={pokemon.sprite}
+                alt=""
+                className="h-10 w-10 object-contain drop-shadow"
+              />
+            </div>
+          )
+        }
+      />
 
-          {!loading && !error && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {owned} de {cards.length} cartas
-            </p>
-          )}
-        </div>
+      {loading && <PageState title="Cargando cartas..." />}
 
-        {pokemon && (
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-full border">
-            <img
-              src={pokemon.sprite}
-              alt=""
-              className="h-10 w-10 object-contain drop-shadow"
-            />
-          </div>
-        )}
-      </div>
-
-      {loading && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">Cargando cartas...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" />}
 
       {!loading && !error && cards.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            No encontramos cartas para este Pokémon.
-          </p>
-        </div>
+        <PageState title="No encontramos cartas para este Pokémon." />
       )}
 
       {!loading && !error && cards.length > 0 && (
         <PokemonCardGrid cards={cards} />
       )}
-    </div>
+    </Page>
   )
 }

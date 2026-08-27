@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { ExpansionGrid } from "@/components/expansions/ExpansionGrid"
+import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 import { SearchInput } from "@/components/ui/search-input"
 
 import { getExpansions } from "@/services/pokemon-service"
@@ -79,31 +80,18 @@ export function ExpansionsPage() {
   }, [expansions, favoriteExpansionIds, query])
 
   return (
-    <div>
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold md:text-3xl">Expansiones</h1>
-      </div>
+    <Page>
+      <PageHeader title="Expansiones" align="center" />
 
       <SearchInput
         value={query}
         onChange={setQuery}
         placeholder="Buscar por nombre"
-        className="mb-6"
       />
 
-      {loading && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            Cargando expansiones...
-          </p>
-        </div>
-      )}
+      {loading && <PageState title="Cargando expansiones..." />}
 
-      {error && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" />}
 
       {!loading && !error && filteredExpansions.length > 0 && (
         <ExpansionGrid
@@ -113,12 +101,8 @@ export function ExpansionsPage() {
       )}
 
       {!loading && !error && filteredExpansions.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            No encontramos expansiones con ese nombre.
-          </p>
-        </div>
+        <PageState title="No encontramos expansiones con ese nombre." />
       )}
-    </div>
+    </Page>
   )
 }

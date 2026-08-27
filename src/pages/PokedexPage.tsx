@@ -1,12 +1,27 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { Grid2X2, List } from "lucide-react"
 
+import {
+  Page,
+  PageHeader,
+  PageSection,
+  PageState,
+} from "@/components/layout/PageLayout"
 import { PokedexPokemonGrid } from "@/components/pokedex/PokedexPokemonGrid"
+import { PokedexPokemonList } from "@/components/pokedex/PokedexPokemonList"
+import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 
-import { getPokedexGeneration } from "@/services/pokemon-service"
+import {
+  getCardsByPokemonId,
+  getPokedexGeneration,
+} from "@/services/pokemon-service"
+import { useCollectionStore } from "@/store/collection-store"
 
 import type { PokedexPokemon } from "@/types/pokemon"
+
+type PokedexView = "list" | "grid"
 
 const generations = [
   {
@@ -51,8 +66,22 @@ export function PokedexPage() {
   const navigate = useNavigate()
   const [pokemon, setPokemon] = useState<PokedexPokemon[]>([])
   const [search, setSearch] = useState("")
+  const [view, setView] = useState<PokedexView>("list")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pokemonStats, setPokemonStats] = useState<
+    Record<
+      number,
+      {
+        cardIds: string[]
+      }
+    >
+  >({})
+
+  const favoritePokemonIds = useCollectionStore(
+    (state) => state.favoritePokemonIds
+  )
+  const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
 
   useEffect(() => {
     let cancelled = false
@@ -109,58 +138,155 @@ export function PokedexPage() {
       .filter((generation) => generation.pokemon.length > 0)
   }, [pokemon, search])
 
+  const sortedPokemonByGeneration = useMemo(
+    () =>
+      pokemonByGeneration.map((generation) => ({
+        ...generation,
+        pokemon: [...generation.pokemon].sort((a, b) => {
+          const aFavorite = favoritePokemonIds.includes(a.id)
+          const bFavorite = favoritePokemonIds.includes(b.id)
+
+          if (aFavorite !== bFavorite) {
+            return aFavorite ? -1 : 1
+          }
+
+          return a.id - b.id
+        }),
+      })),
+    [favoritePokemonIds, pokemonByGeneration]
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    const missingPokemon = sortedPokemonByGeneration
+      .flatMap((generation) => generation.pokemon)
+      .filter((item) => !pokemonStats[item.id])
+      .slice(0, 40)
+
+    if (missingPokemon.length === 0) {
+      return
+    }
+
+    async function loadPokemonStats() {
+      const results = await Promise.all(
+        missingPokemon.map(async (item) => {
+          try {
+            const cards = await getCardsByPokemonId(item.id)
+
+            return [
+              item.id,
+              {
+                cardIds: cards.map((card) => card.id),
+              },
+            ] as const
+          } catch (error) {
+            console.error(`Could not load stats for ${item.name}`, error)
+
+            return [
+              item.id,
+              {
+                cardIds: [],
+              },
+            ] as const
+          }
+        })
+      )
+
+      if (!cancelled) {
+        setPokemonStats((previous) => ({
+          ...previous,
+          ...Object.fromEntries(results),
+        }))
+      }
+    }
+
+    loadPokemonStats()
+
+    return () => {
+      cancelled = true
+    }
+  }, [pokemonStats, sortedPokemonByGeneration])
+
+  const viewButtonLabel =
+    view === "list" ? "Cambiar a cuadrícula" : "Cambiar a lista"
+
   return (
-    <div>
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold md:text-3xl">Pokédex</h1>
-      </div>
+    <Page>
+      <PageHeader
+        title="Pokédex"
+        align="center"
+        action={
+          <Button
+            type="button"
+            size="icon-lg"
+            onClick={() =>
+              setView((current) => (current === "list" ? "grid" : "list"))
+            }
+            className="size-11 rounded-full"
+            aria-label={viewButtonLabel}
+            title={viewButtonLabel}
+          >
+            {view === "list" ? (
+              <Grid2X2 className="size-4" />
+            ) : (
+              <List className="size-4" />
+            )}
+          </Button>
+        }
+      />
 
       <SearchInput
         value={search}
         onChange={setSearch}
         placeholder="Buscar Pokémon"
-        className="mb-4"
       />
 
-      {loading && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">Cargando Pokémon...</p>
-        </div>
+      {loading && <PageState title="Cargando Pokémon..." />}
+
+      {error && <PageState title={error} tone="danger" />}
+
+      {!loading && !error && sortedPokemonByGeneration.length === 0 && (
+        <PageState title="No encontramos Pokémon." />
       )}
 
-      {error && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
-
-      {!loading && !error && pokemonByGeneration.length === 0 && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            No encontramos Pokémon.
-          </p>
-        </div>
-      )}
-
-      {!loading && !error && pokemonByGeneration.length > 0 && (
+      {!loading && !error && sortedPokemonByGeneration.length > 0 && (
         <div className="space-y-10">
-          {pokemonByGeneration.map((generation) => (
-            <section key={generation.id} className="scroll-mt-4">
-              <div className="mb-4 flex items-end justify-between gap-4">
-                <h2 className="text-xl font-bold">{generation.label}</h2>
-                <span className="text-sm text-muted-foreground">
-                  {generation.pokemon.length}
-                </span>
-              </div>
+          {sortedPokemonByGeneration.map((generation) => (
+            <PageSection
+              key={generation.id}
+              title={generation.label}
+              meta={generation.pokemon.length}
+            >
+              {view === "list" ? (
+                <PokedexPokemonList
+                  pokemon={generation.pokemon}
+                  stats={Object.fromEntries(
+                    generation.pokemon.map((item) => {
+                      const cardIds = pokemonStats[item.id]?.cardIds
 
-              <PokedexPokemonGrid
-                pokemon={generation.pokemon}
-                onSelect={(item) => navigate(`/pokedex/${item.id}`)}
-              />
-            </section>
+                      return [
+                        item.id,
+                        {
+                          owned: cardIds?.filter((cardId) =>
+                            ownedCardIds.includes(cardId)
+                          ).length,
+                          total: cardIds?.length,
+                        },
+                      ]
+                    })
+                  )}
+                  onSelect={(item) => navigate(`/pokedex/${item.id}`)}
+                />
+              ) : (
+                <PokedexPokemonGrid
+                  pokemon={generation.pokemon}
+                  onSelect={(item) => navigate(`/pokedex/${item.id}`)}
+                />
+              )}
+            </PageSection>
           ))}
         </div>
       )}
-    </div>
+    </Page>
   )
 }

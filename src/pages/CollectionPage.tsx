@@ -2,9 +2,15 @@ import { useEffect, useState } from "react"
 
 import { Link, useParams } from "react-router-dom"
 
-import { ArrowLeft, Heart } from "lucide-react"
+import { Heart } from "lucide-react"
 
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
+import {
+  Page,
+  PageBackLink,
+  PageHeader,
+  PageState,
+} from "@/components/layout/PageLayout"
 
 import { collections } from "@/data/collections"
 
@@ -78,8 +84,8 @@ export function CollectionPage() {
 
   if (!requestedSetId) {
     return (
-      <div>
-        <h1 className="text-xl font-bold">Expansión no encontrada</h1>
+      <Page>
+        <PageHeader title="Expansión no encontrada" />
 
         <Link
           to="/expansions"
@@ -87,7 +93,7 @@ export function CollectionPage() {
         >
           Volver a Expansiones
         </Link>
-      </div>
+      </Page>
     )
   }
 
@@ -98,61 +104,39 @@ export function CollectionPage() {
   const favorite = favoriteExpansionIds.includes(requestedSetId)
 
   return (
-    <div>
-      <Link
-        to="/expansions"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Expansiones
-      </Link>
+    <Page>
+      <PageBackLink to="/expansions">Expansiones</PageBackLink>
 
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold">{title}</h1>
+      <PageHeader
+        title={title}
+        description={description}
+        meta={!loading && !error ? `${owned} de ${cards.length} cartas` : null}
+        action={
+          <button
+            type="button"
+            onClick={() => toggleFavoriteExpansion(requestedSetId)}
+            aria-label={
+              favorite
+                ? `Quitar ${title} de favoritos`
+                : `Agregar ${title} a favoritos`
+            }
+            className="flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-accent"
+          >
+            <Heart
+              className="size-5"
+              fill={favorite ? "currentColor" : "none"}
+            />
+          </button>
+        }
+      />
 
-          {description && (
-            <p className="mt-1 truncate text-sm text-muted-foreground">
-              {description}
-            </p>
-          )}
+      {loading && <PageState title="Cargando cartas..." />}
 
-          {!loading && !error && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {owned} de {cards.length} cartas
-            </p>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => toggleFavoriteExpansion(requestedSetId)}
-          aria-label={
-            favorite
-              ? `Quitar ${title} de favoritos`
-              : `Agregar ${title} a favoritos`
-          }
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-accent"
-        >
-          <Heart className="size-5" fill={favorite ? "currentColor" : "none"} />
-        </button>
-      </div>
-
-      {loading && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-muted-foreground">Cargando cartas...</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="py-16 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" />}
 
       {!loading && !error && cards.length > 0 && (
         <PokemonCardGrid cards={cards} />
       )}
-    </div>
+    </Page>
   )
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Images } from "lucide-react"
 
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
+import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 
 import { getCardsByIds } from "@/services/pokemon-service"
 
@@ -67,44 +68,28 @@ export function MyCollectionPage() {
   const totalCards = new Set([...ownedCardIds, ...wishlistCardIds]).size
 
   return (
-    <div>
-      <div className="mb-5 text-center">
-        <h1 className="text-2xl font-bold">Mi colección</h1>
+    <Page>
+      <PageHeader
+        title="Mi colección"
+        meta={`${ownedCardIds.length} en propiedad · ${wishlistCardIds.length} deseadas`}
+        align="center"
+      />
 
-        <p className="mt-1 text-sm text-muted-foreground">
-          {ownedCardIds.length} en propiedad · {wishlistCardIds.length} deseadas
-        </p>
-      </div>
+      {loading && <PageState title="Cargando tus cartas..." size="compact" />}
 
-      {loading && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Cargando tus cartas...
-          </p>
-        </div>
-      )}
-
-      {error && (
-        <div className="py-12 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
+      {error && <PageState title={error} tone="danger" size="compact" />}
 
       {!loading && !error && totalCards === 0 && (
-        <div className="py-16 text-center">
-          <Images className="mx-auto mb-3 size-9 text-muted-foreground" />
-
-          <p className="font-medium">Tu colección está vacía</p>
-
-          <p className="mt-1 text-sm text-muted-foreground">
-            Agrega cartas en propiedad o a tu lista de deseos.
-          </p>
-        </div>
+        <PageState
+          icon={<Images className="size-9" />}
+          title="Tu colección está vacía"
+          description="Agrega cartas en propiedad o a tu lista de deseos."
+        />
       )}
 
       {!loading && !error && cards.length > 0 && (
         <PokemonCardGrid cards={cards} />
       )}
-    </div>
+    </Page>
   )
 }

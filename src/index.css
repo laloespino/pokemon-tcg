@@ -123,8 +123,34 @@
     }
   body {
     @apply bg-background text-foreground;
+    min-height: 100dvh;
     }
   html {
     @apply font-sans;
+    }
+  #root {
+    min-height: 100dvh;
+    }
+}
+
+@layer utilities {
+  .safe-x {
+    padding-left: calc(0.75rem + env(safe-area-inset-left));
+    padding-right: calc(0.75rem + env(safe-area-inset-right));
+    }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+    }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+    }
+
+  @media (width >= 40rem) {
+    .safe-x {
+      padding-left: calc(1.5rem + env(safe-area-inset-left));
+      padding-right: calc(1.5rem + env(safe-area-inset-right));
+      }
     }
 }

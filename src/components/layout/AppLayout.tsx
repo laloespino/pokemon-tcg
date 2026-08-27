@@ -13,10 +13,9 @@ export function AppLayout() {
           mx-auto
           w-full
           max-w-7xl
-          px-3
+          safe-x
           py-4
           pb-24
-          sm:px-6
           sm:py-6
           md:pb-6
         "

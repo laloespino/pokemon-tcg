@@ -3,6 +3,7 @@ import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Folder, Plus, Trash2 } from "lucide-react"
 
+import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 import { useCollectionStore } from "@/store/collection-store"
@@ -30,24 +31,26 @@ export function AlbumsPage() {
   }
 
   return (
-    <div>
-      <div className="relative mb-8 text-center">
-        <h1 className="text-2xl font-bold">Álbumes</h1>
-
-        <Button
-          type="button"
-          size="icon-lg"
-          onClick={createNewAlbum}
-          className="absolute top-1/2 right-0 size-11 -translate-y-1/2 rounded-full"
-          aria-label="Crear álbum"
-        >
-          <Plus className="size-4" />
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Álbumes"
+        align="center"
+        action={
+          <Button
+            type="button"
+            size="icon-lg"
+            onClick={createNewAlbum}
+            className="size-11 rounded-full"
+            aria-label="Crear álbum"
+          >
+            <Plus className="size-4" />
+          </Button>
+        }
+      />
 
       <form
         onSubmit={handleSubmit}
-        className="sticky top-14 z-30 mb-6 bg-background/95 py-2 backdrop-blur"
+        className="sticky top-14 z-30 bg-background/95 py-2 backdrop-blur"
       >
         <SearchInput
           value={name}
@@ -58,13 +61,11 @@ export function AlbumsPage() {
       </form>
 
       {albums.length === 0 ? (
-        <div className="py-16 text-center">
-          <Folder className="mx-auto mb-3 size-9 text-muted-foreground" />
-          <p className="font-medium">No hay álbumes</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Crea uno para empezar a guardar cartas.
-          </p>
-        </div>
+        <PageState
+          icon={<Folder className="size-9" />}
+          title="No hay álbumes"
+          description="Crea uno para empezar a guardar cartas."
+        />
       ) : (
         <div className="space-y-2.5">
           {albums.map((album) => {
@@ -123,6 +124,6 @@ export function AlbumsPage() {
           })}
         </div>
       )}
-    </div>
+    </Page>
   )
 }

@@ -1,0 +1,19 @@
+{
+  "name": "PokéBinder",
+  "short_name": "PokéBinder",
+  "description": "Seguimiento personal de colección Pokémon TCG.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#111715",
+  "icons": [
+    {
+      "src": "/pokebinder.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

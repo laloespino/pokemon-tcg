@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import { Heart } from "lucide-react"
 
+import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 import { useCollectionStore } from "@/store/collection-store"
 
 export function FavoritesPage() {
@@ -14,37 +15,27 @@ export function FavoritesPage() {
 
   if (favoriteArtists.length === 0) {
     return (
-      <div>
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold">Favoritos</h1>
+      <Page>
+        <PageHeader
+          title="Favoritos"
+          description="Tus artistas favoritos de Pokémon TCG."
+        />
 
-          <p className="mt-1 text-sm text-muted-foreground">
-            Tus artistas favoritos de Pokémon TCG.
-          </p>
-        </div>
-
-        <div className="py-16 text-center">
-          <Heart className="mx-auto mb-3 size-8 text-muted-foreground" />
-
-          <p className="font-medium">Todavía no tienes artistas favoritos</p>
-
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ve a Artistas y toca el corazón para agregar uno.
-          </p>
-        </div>
-      </div>
+        <PageState
+          icon={<Heart className="size-8" />}
+          title="Todavía no tienes artistas favoritos"
+          description="Ve a Artistas y toca el corazón para agregar uno."
+        />
+      </Page>
     )
   }
 
   return (
-    <div>
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold">Favoritos</h1>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Tus artistas favoritos de Pokémon TCG.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Favoritos"
+        description="Tus artistas favoritos de Pokémon TCG."
+      />
 
       <div className="space-y-2">
         {favoriteArtists.map((artist) => (
@@ -73,6 +64,6 @@ export function FavoritesPage() {
           </div>
         ))}
       </div>
-    </div>
+    </Page>
   )
 }

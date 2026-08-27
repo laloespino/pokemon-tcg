@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
-import { ArrowLeft, Check, Pencil, Plus, X } from "lucide-react"
+import { Check, Pencil, Plus, X } from "lucide-react"
 
 import { CardSearchResults } from "@/components/cards/CardSearchResults"
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
+import {
+  Page,
+  PageBackLink,
+  PageHeader,
+  PageState,
+} from "@/components/layout/PageLayout"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -58,10 +64,6 @@ export function AlbumPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setAlbumName(album?.name ?? "")
-  }, [album?.name])
-
-  useEffect(() => {
     let cancelled = false
 
     async function loadAlbumCards() {
@@ -98,9 +100,6 @@ export function AlbumPage() {
     const trimmedQuery = query.trim()
 
     if (!searchOpen || !trimmedQuery) {
-      setResults([])
-      setError(null)
-      setLoadingSearch(false)
       return
     }
 
@@ -149,6 +148,16 @@ export function AlbumPage() {
     setSearchOpen(true)
   }
 
+  function updateSearchQuery(value: string) {
+    setQuery(value)
+
+    if (!value.trim()) {
+      setResults([])
+      setError(null)
+      setLoadingSearch(false)
+    }
+  }
+
   function cancelSearch() {
     setDraftSelectedCardIds(album?.cardIds ?? [])
     setSearchOpen(false)
@@ -185,6 +194,11 @@ export function AlbumPage() {
     setEditingName(false)
   }
 
+  function startAlbumNameEdit() {
+    setAlbumName(album?.name ?? "")
+    setEditingName(true)
+  }
+
   function toggleAllResults() {
     const resultIds = results.map((card) => card.id)
     const allSelected = resultIds.every((cardId) =>
@@ -202,15 +216,15 @@ export function AlbumPage() {
 
   if (!album) {
     return (
-      <div>
-        <h1 className="text-xl font-bold">Álbum no encontrado</h1>
+      <Page>
+        <PageHeader title="Álbum no encontrado" />
         <Link
           to="/albums"
           className="mt-3 inline-flex text-sm text-muted-foreground"
         >
           Volver a Álbumes
         </Link>
-      </div>
+      </Page>
     )
   }
 
@@ -221,83 +235,74 @@ export function AlbumPage() {
   const allResultsSelected =
     resultIds.length > 0 &&
     resultIds.every((cardId) => draftSelectedCardIds.includes(cardId))
+  const title = editingName ? (
+    <div className="flex items-center gap-2">
+      <Input
+        value={albumName}
+        onChange={(event) => setAlbumName(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            saveAlbumName()
+          }
+
+          if (event.key === "Escape") {
+            cancelAlbumNameEdit()
+          }
+        }}
+        className="h-10 text-base font-bold"
+        autoFocus
+      />
+
+      <Button
+        type="button"
+        size="icon-sm"
+        aria-label="Guardar nombre"
+        onClick={saveAlbumName}
+      >
+        <Check className="size-4" />
+      </Button>
+
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="secondary"
+        aria-label="Cancelar edición"
+        onClick={cancelAlbumNameEdit}
+      >
+        <X className="size-4" />
+      </Button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={startAlbumNameEdit}
+      className="flex max-w-full items-center gap-2 text-left"
+      aria-label="Editar nombre del álbum"
+    >
+      <h1 className="truncate text-2xl font-bold">{album.name}</h1>
+      <Pencil className="size-4 shrink-0 text-muted-foreground" />
+    </button>
+  )
 
   return (
-    <div>
-      <Link
-        to="/albums"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Álbumes
-      </Link>
+    <Page>
+      <PageBackLink to="/albums">Álbumes</PageBackLink>
 
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          {editingName ? (
-            <div className="flex items-center gap-2">
-              <Input
-                value={albumName}
-                onChange={(event) => setAlbumName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    saveAlbumName()
-                  }
-
-                  if (event.key === "Escape") {
-                    cancelAlbumNameEdit()
-                  }
-                }}
-                className="h-10 text-base font-bold"
-                autoFocus
-              />
-
-              <Button
-                type="button"
-                size="icon-sm"
-                aria-label="Guardar nombre"
-                onClick={saveAlbumName}
-              >
-                <Check className="size-4" />
-              </Button>
-
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="secondary"
-                aria-label="Cancelar edición"
-                onClick={cancelAlbumNameEdit}
-              >
-                <X className="size-4" />
-              </Button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEditingName(true)}
-              className="flex max-w-full items-center gap-2 text-left"
-              aria-label="Editar nombre del álbum"
-            >
-              <h1 className="truncate text-2xl font-bold">{album.name}</h1>
-              <Pencil className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          )}
-
-          <p className="mt-1 text-sm text-muted-foreground">
-            {ownedInAlbum} de {album.cardIds.length} cartas
-          </p>
-        </div>
-
-        <Button
-          type="button"
-          size="icon-lg"
-          className="size-11 rounded-full"
-          aria-label="Agregar cartas"
-          onClick={openSearch}
-        >
-          <Plus className="size-5" />
-        </Button>
-      </div>
+      <PageHeader
+        title={title}
+        meta={`${ownedInAlbum} de ${album.cardIds.length} cartas`}
+        action={
+          <Button
+            type="button"
+            size="icon-lg"
+            className="size-11 rounded-full"
+            aria-label="Agregar cartas"
+            onClick={openSearch}
+          >
+            <Plus className="size-5" />
+          </Button>
+        }
+      />
 
       <Dialog
         open={searchOpen}
@@ -351,7 +356,7 @@ export function AlbumPage() {
 
             <SearchInput
               value={query}
-              onChange={setQuery}
+              onChange={updateSearchQuery}
               placeholder="Buscar para agregar"
               className="mb-3"
             />
@@ -419,21 +424,15 @@ export function AlbumPage() {
         </DialogContent>
       </Dialog>
 
-      {loadingAlbum && (
-        <div className="py-12 text-center text-sm text-muted-foreground">
-          Cargando álbum...
-        </div>
-      )}
+      {loadingAlbum && <PageState title="Cargando álbum..." size="compact" />}
 
       {!loadingAlbum && albumCards.length === 0 && (
-        <div className="py-12 text-center text-sm text-muted-foreground">
-          Este álbum todavía está vacío.
-        </div>
+        <PageState title="Este álbum todavía está vacío." size="compact" />
       )}
 
       {!loadingAlbum && albumCards.length > 0 && (
         <PokemonCardGrid cards={albumCards} />
       )}
-    </div>
+    </Page>
   )
 }
