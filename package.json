@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:pages": "VITE_BASE_PATH=/pokemon-tcg/ npm run build",
+    "prepare:pages": "npm run build:pages && cp dist/index.html dist/404.html",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",

@@ -1,7 +1,7 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
-import { Folder, Plus, Trash2 } from "lucide-react"
+import { Download, Folder, Plus, Trash2, Upload } from "lucide-react"
 
 import { AlbumCover } from "@/components/albums/AlbumCover"
 import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
@@ -25,12 +25,18 @@ export function AlbumsPage() {
   const wishlistCardIds = useCollectionStore((state) => state.wishlistCardIds)
   const createAlbum = useCollectionStore((state) => state.createAlbum)
   const deleteAlbum = useCollectionStore((state) => state.deleteAlbum)
+  const exportBackup = useCollectionStore((state) => state.exportBackup)
+  const importBackup = useCollectionStore((state) => state.importBackup)
   const [query, setQuery] = useState("")
   const [name, setName] = useState("")
   const [createOpen, setCreateOpen] = useState(false)
+  const [backupOpen, setBackupOpen] = useState(false)
+  const [backupMessage, setBackupMessage] = useState<string | null>(null)
+  const [backupError, setBackupError] = useState<string | null>(null)
   const [albumToDelete, setAlbumToDelete] = useState<
     (typeof albums)[number] | null
   >(null)
+  const backupInputRef = useRef<HTMLInputElement>(null)
 
   function createNewAlbum() {
     const trimmedName = name.trim()
@@ -59,6 +65,56 @@ export function AlbumsPage() {
     setAlbumToDelete(null)
   }
 
+  function downloadBackup() {
+    const backup = exportBackup()
+    const date = new Date().toISOString().slice(0, 10)
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json",
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+
+    link.href = url
+    link.download = `pokebinder-backup-${date}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+
+    setBackupError(null)
+    setBackupMessage("Respaldo descargado.")
+  }
+
+  async function importBackupFile(file: File) {
+    const confirmed = window.confirm(
+      "Importar este respaldo reemplazará tus datos actuales. ¿Quieres continuar?"
+    )
+
+    if (!confirmed) {
+      if (backupInputRef.current) {
+        backupInputRef.current.value = ""
+      }
+
+      return
+    }
+
+    try {
+      const text = await file.text()
+      const backup = JSON.parse(text)
+
+      importBackup(backup)
+      setBackupError(null)
+      setBackupMessage("Respaldo importado.")
+      setBackupOpen(false)
+    } catch (error) {
+      console.error(error)
+      setBackupMessage(null)
+      setBackupError("No pudimos importar ese archivo.")
+    } finally {
+      if (backupInputRef.current) {
+        backupInputRef.current.value = ""
+      }
+    }
+  }
+
   const normalizedQuery = query.trim().toLowerCase()
   const showWishlistAlbum =
     !normalizedQuery || "lista de deseos".includes(normalizedQuery)
@@ -75,15 +131,31 @@ export function AlbumsPage() {
         title="Álbumes"
         align="center"
         action={
-          <Button
-            type="button"
-            size="icon-lg"
-            onClick={() => setCreateOpen(true)}
-            className="size-11 rounded-full"
-            aria-label="Crear álbum"
-          >
-            <Plus className="size-4" />
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              onClick={() => {
+                setBackupOpen(true)
+                setBackupMessage(null)
+                setBackupError(null)
+              }}
+              aria-label="Respaldar o restaurar"
+            >
+              <Download className="size-4" />
+            </Button>
+
+            <Button
+              type="button"
+              size="icon-lg"
+              onClick={() => setCreateOpen(true)}
+              className="size-11 rounded-full"
+              aria-label="Crear álbum"
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
         }
       />
 
@@ -168,6 +240,70 @@ export function AlbumsPage() {
               onClick={confirmDeleteAlbum}
             >
               Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={backupOpen}
+        onOpenChange={(open) => {
+          setBackupOpen(open)
+
+          if (!open) {
+            setBackupMessage(null)
+            setBackupError(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Respaldo</DialogTitle>
+            <DialogDescription>
+              Exporta tus cartas, lista de deseos, favoritos y álbumes a un
+              archivo JSON. Importar un archivo reemplaza los datos actuales.
+            </DialogDescription>
+          </DialogHeader>
+
+          <input
+            ref={backupInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+
+              if (file) {
+                void importBackupFile(file)
+              }
+            }}
+          />
+
+          {(backupMessage || backupError) && (
+            <p
+              className={
+                backupError
+                  ? "text-sm text-destructive"
+                  : "text-sm text-muted-foreground"
+              }
+            >
+              {backupError ?? backupMessage}
+            </p>
+          )}
+
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => backupInputRef.current?.click()}
+            >
+              <Upload className="size-4" />
+              Importar
+            </Button>
+
+            <Button type="button" onClick={downloadBackup}>
+              <Download className="size-4" />
+              Exportar
             </Button>
           </DialogFooter>
         </DialogContent>

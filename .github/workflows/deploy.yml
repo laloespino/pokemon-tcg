@@ -2,27 +2,23 @@ name: Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: deploy-production
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build and deploy
+  build:
     runs-on: ubuntu-latest
     env:
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
-      VPS_USER: ${{ secrets.VPS_USER }}
-      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-
+      VITE_BASE_PATH: /pokemon-tcg/
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,31 +29,27 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Typecheck
-        run: npm run typecheck
-
       - name: Build
-        run: npm run build
+        run: npm run prepare:pages
 
-      - name: Configure SSH
-        run: |
-          mkdir -p ~/.ssh
-          printf '%s' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
-      - name: Ensure deploy directory exists
-        run: |
-          ssh -i ~/.ssh/deploy_key -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$DEPLOY_PATH'"
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
 
-      - name: Deploy static files
-        run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p $VPS_PORT" \
-            dist/ "$VPS_USER@$VPS_HOST:$DEPLOY_PATH/"
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -9,6 +9,23 @@ type Album = {
   cardIds: string[]
 }
 
+type CollectionBackupData = {
+  ownedCardIds: string[]
+  wishlistCardIds: string[]
+  favoriteArtists: string[]
+  favoriteExpansionIds: string[]
+  favoritePokemonIds: number[]
+  cardSnapshots: Record<string, PokemonCard>
+  albums: Album[]
+}
+
+export type CollectionBackup = {
+  app: "pokebinder"
+  version: 1
+  exportedAt: string
+  data: CollectionBackupData
+}
+
 type CollectionStore = {
   ownedCardIds: string[]
   wishlistCardIds: string[]
@@ -30,11 +47,107 @@ type CollectionStore = {
   renameAlbum: (albumId: string, name: string) => void
   setAlbumCards: (albumId: string, cardIds: string[]) => void
   toggleAlbumCard: (albumId: string, cardId: string) => void
+  exportBackup: () => CollectionBackup
+  importBackup: (backup: unknown) => void
+}
+
+const backupKeys = [
+  "ownedCardIds",
+  "wishlistCardIds",
+  "favoriteArtists",
+  "favoriteExpansionIds",
+  "favoritePokemonIds",
+  "cardSnapshots",
+  "albums",
+] as const
+
+function createId() {
+  return typeof globalThis.crypto !== "undefined" &&
+    "randomUUID" in globalThis.crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function toStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : []
+}
+
+function toNumberArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is number => Number.isFinite(item))
+    : []
+}
+
+function toAlbums(value: unknown): Album[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter(
+      (album): album is Partial<Album> =>
+        typeof album === "object" && album !== null
+    )
+    .map((album) => ({
+      id: typeof album.id === "string" ? album.id : createId(),
+      name: typeof album.name === "string" ? album.name : "Álbum importado",
+      cardIds: toStringArray(album.cardIds),
+    }))
+}
+
+function toCardSnapshots(value: unknown) {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, PokemonCard>)
+    : {}
+}
+
+function normalizeBackupData(value: unknown): CollectionBackupData {
+  const data =
+    typeof value === "object" && value !== null
+      ? (value as Partial<CollectionBackupData>)
+      : {}
+
+  return {
+    ownedCardIds: toStringArray(data.ownedCardIds),
+    wishlistCardIds: toStringArray(data.wishlistCardIds),
+    favoriteArtists: toStringArray(data.favoriteArtists),
+    favoriteExpansionIds: toStringArray(data.favoriteExpansionIds),
+    favoritePokemonIds: toNumberArray(data.favoritePokemonIds),
+    cardSnapshots: toCardSnapshots(data.cardSnapshots),
+    albums: toAlbums(data.albums),
+  }
+}
+
+function normalizeBackup(value: unknown) {
+  const payload =
+    typeof value === "object" && value !== null
+      ? (value as Partial<CollectionBackup> & Partial<CollectionBackupData>)
+      : {}
+  const data = "data" in payload ? payload.data : payload
+
+  if (
+    payload.app &&
+    (payload.app !== "pokebinder" || payload.version !== 1)
+  ) {
+    throw new Error("Unsupported backup")
+  }
+
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !backupKeys.some((key) => key in data)
+  ) {
+    throw new Error("Invalid backup")
+  }
+
+  return normalizeBackupData(data)
 }
 
 export const useCollectionStore = create<CollectionStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ownedCardIds: [],
       wishlistCardIds: [],
       favoriteArtists: [],
@@ -125,11 +238,7 @@ export const useCollectionStore = create<CollectionStore>()(
       },
 
       createAlbum: (name) => {
-        const id =
-          typeof globalThis.crypto !== "undefined" &&
-          "randomUUID" in globalThis.crypto
-            ? crypto.randomUUID()
-            : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        const id = createId()
 
         set((state) => ({
           albums: [
@@ -198,6 +307,29 @@ export const useCollectionStore = create<CollectionStore>()(
             }
           ),
         })),
+
+      exportBackup: () => {
+        const state = get()
+
+        return {
+          app: "pokebinder",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          data: normalizeBackupData({
+            ownedCardIds: state.ownedCardIds,
+            wishlistCardIds: state.wishlistCardIds,
+            favoriteArtists: state.favoriteArtists,
+            favoriteExpansionIds: state.favoriteExpansionIds,
+            favoritePokemonIds: state.favoritePokemonIds,
+            cardSnapshots: state.cardSnapshots,
+            albums: state.albums,
+          }),
+        }
+      },
+
+      importBackup: (backup) => {
+        set(normalizeBackup(backup))
+      },
     }),
     {
       name: "pokemon-collection",

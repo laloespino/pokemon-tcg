@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { ImageOff } from "lucide-react"
 
@@ -21,15 +21,33 @@ export function PokemonCardImage({
   placeholderClassName,
   loading = "lazy",
 }: PokemonCardImageProps) {
+  return (
+    <PokemonCardImageContent
+      key={src ?? "missing"}
+      src={src}
+      fallbackSrcs={fallbackSrcs}
+      alt={alt}
+      className={className}
+      placeholderClassName={placeholderClassName}
+      loading={loading}
+    />
+  )
+}
+
+function PokemonCardImageContent({
+  src,
+  fallbackSrcs,
+  alt,
+  className,
+  placeholderClassName,
+  loading,
+}: PokemonCardImageProps & {
+  fallbackSrcs: string[]
+  loading: "eager" | "lazy"
+}) {
   const [currentSrc, setCurrentSrc] = useState(src)
   const [failed, setFailed] = useState(false)
   const [fallbackIndex, setFallbackIndex] = useState(0)
-
-  useEffect(() => {
-    setCurrentSrc(src)
-    setFallbackIndex(0)
-    setFailed(false)
-  }, [src])
 
   if (!currentSrc || failed) {
     return (
