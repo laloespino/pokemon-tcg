@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CircleDot,
   Gem,
+  Globe2,
   Hash,
   Layers3,
   Plus,
@@ -289,6 +290,16 @@ export function PokemonCardViewer({
       label: "Expansión",
       value: currentCard.set.name,
       icon: Layers3,
+    })
+  }
+
+  if (currentCard.set?.regions?.length) {
+    attributes.push({
+      label: "Región",
+      value: currentCard.set.regions
+        .map((region) => `${region.flag} ${region.label}`)
+        .join(", "),
+      icon: Globe2,
     })
   }
 

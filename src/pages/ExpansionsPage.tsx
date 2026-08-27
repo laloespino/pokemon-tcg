@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { ExpansionGrid } from "@/components/expansions/ExpansionGrid"
-import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
+import {
+  Page,
+  PageHeader,
+  PageSection,
+  PageState,
+} from "@/components/layout/PageLayout"
 import { SearchInput } from "@/components/ui/search-input"
 
 import { getExpansions } from "@/services/pokemon-service"
@@ -72,12 +77,30 @@ export function ExpansionsPage() {
           return aFavorite ? -1 : 1
         }
 
-        return (
-          (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "") ||
-          a.name.localeCompare(b.name)
-        )
+        return compareReleaseDatesDesc(a, b) || a.name.localeCompare(b.name)
       })
   }, [expansions, favoriteExpansionIds, query])
+
+  const expansionsBySeries = useMemo(() => {
+    const groups = new Map<string, PokemonExpansion[]>()
+
+    for (const expansion of filteredExpansions) {
+      const series = expansion.series ?? "Sin serie"
+      groups.set(series, [...(groups.get(series) ?? []), expansion])
+    }
+
+    return Array.from(groups, ([series, items]) => ({
+      series,
+      expansions: items,
+      latestReleaseDate:
+        items.find((expansion) => Boolean(expansion.releaseDate))
+          ?.releaseDate ?? "",
+    })).sort(
+      (a, b) =>
+        b.latestReleaseDate.localeCompare(a.latestReleaseDate) ||
+        a.series.localeCompare(b.series)
+    )
+  }, [filteredExpansions])
 
   return (
     <Page>
@@ -93,16 +116,44 @@ export function ExpansionsPage() {
 
       {error && <PageState title={error} tone="danger" />}
 
-      {!loading && !error && filteredExpansions.length > 0 && (
-        <ExpansionGrid
-          expansions={filteredExpansions}
-          onSelect={(expansion) => navigate(`/expansions/${expansion.id}`)}
-        />
+      {!loading && !error && expansionsBySeries.length > 0 && (
+        <div className="space-y-10">
+          {expansionsBySeries.map((group) => (
+            <PageSection
+              key={group.series}
+              title={group.series}
+              meta={group.expansions.length}
+            >
+              <ExpansionGrid
+                expansions={group.expansions}
+                onSelect={(expansion) =>
+                  navigate(`/expansions/${expansion.id}`)
+                }
+              />
+            </PageSection>
+          ))}
+        </div>
       )}
 
-      {!loading && !error && filteredExpansions.length === 0 && (
-        <PageState title="No encontramos expansiones con ese nombre." />
+      {!loading && !error && expansionsBySeries.length === 0 && (
+        <PageState title="No encontramos expansiones." />
       )}
     </Page>
   )
+}
+
+function compareReleaseDatesDesc(a: PokemonExpansion, b: PokemonExpansion) {
+  if (a.releaseDate && b.releaseDate) {
+    return b.releaseDate.localeCompare(a.releaseDate)
+  }
+
+  if (a.releaseDate) {
+    return -1
+  }
+
+  if (b.releaseDate) {
+    return 1
+  }
+
+  return 0
 }

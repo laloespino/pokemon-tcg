@@ -1,9 +1,10 @@
-import { Folder } from "lucide-react"
+import { Folder, Heart } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
 type AlbumCoverProps = {
   name: string
+  variant?: "default" | "wishlist"
 }
 
 const coverColors = [
@@ -20,17 +21,21 @@ function colorIndex(value: string) {
     .reduce((total, character) => total + character.charCodeAt(0), 0)
 }
 
-export function AlbumCover({ name }: AlbumCoverProps) {
+export function AlbumCover({ name, variant = "default" }: AlbumCoverProps) {
+  const Icon = variant === "wishlist" ? Heart : Folder
+
   return (
     <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-muted text-muted-foreground">
       <div
         className={cn(
           "absolute inset-0 bg-gradient-to-br via-transparent",
-          coverColors[colorIndex(name) % coverColors.length]
+          variant === "wishlist"
+            ? "from-pink-500/35 to-amber-400/25"
+            : coverColors[colorIndex(name) % coverColors.length]
         )}
       />
 
-      <Folder className="relative size-7" />
+      <Icon className="relative size-7" />
     </div>
   )
 }

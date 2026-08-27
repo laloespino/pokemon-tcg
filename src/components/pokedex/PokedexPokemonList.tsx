@@ -38,6 +38,7 @@ export function PokedexPokemonList({
             ? 0
             : Math.round((owned / total) * 100)
         const favorite = favoritePokemonIds.includes(item.id)
+        const showStats = favorite
 
         return (
           <div
@@ -70,22 +71,24 @@ export function PokedexPokemonList({
                 </span>
               </div>
 
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {total === undefined
-                    ? "Cargando..."
-                    : `${owned} de ${total} cartas`}
-                </span>
+              {showStats && (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {total === undefined
+                      ? "Cargando..."
+                      : `${owned} de ${total} cartas`}
+                  </span>
 
-                {total !== undefined && (
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                )}
-              </div>
+                  {total !== undefined && (
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </button>
 
             <button

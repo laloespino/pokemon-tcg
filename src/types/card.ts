@@ -1,3 +1,5 @@
+import type { PokemonRegion } from "@/types/region"
+
 export type PokemonCard = {
   id: string
   name: string
@@ -25,6 +27,8 @@ export type PokemonCard = {
     id: string
     name: string
     series?: string
+    regions?: PokemonRegion[]
+    releaseDate?: string
   }
 
   images: {

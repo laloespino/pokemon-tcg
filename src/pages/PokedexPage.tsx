@@ -27,44 +27,54 @@ const generations = [
   {
     id: 1,
     label: "Generación I",
+    shortLabel: "I",
   },
   {
     id: 2,
     label: "Generación II",
+    shortLabel: "II",
   },
   {
     id: 3,
     label: "Generación III",
+    shortLabel: "III",
   },
   {
     id: 4,
     label: "Generación IV",
+    shortLabel: "IV",
   },
   {
     id: 5,
     label: "Generación V",
+    shortLabel: "V",
   },
   {
     id: 6,
     label: "Generación VI",
+    shortLabel: "VI",
   },
   {
     id: 7,
     label: "Generación VII",
+    shortLabel: "VII",
   },
   {
     id: 8,
     label: "Generación VIII",
+    shortLabel: "VIII",
   },
   {
     id: 9,
     label: "Generación IX",
+    shortLabel: "IX",
   },
 ]
 
 export function PokedexPage() {
   const navigate = useNavigate()
   const [pokemon, setPokemon] = useState<PokedexPokemon[]>([])
+  const [activeGeneration, setActiveGeneration] = useState(1)
   const [search, setSearch] = useState("")
   const [view, setView] = useState<PokedexView>("list")
   const [loading, setLoading] = useState(true)
@@ -91,11 +101,7 @@ export function PokedexPage() {
         setLoading(true)
         setError(null)
 
-        const result = (
-          await Promise.all(
-            generations.map((item) => getPokedexGeneration(item.id))
-          )
-        ).flat()
+        const result = await getPokedexGeneration(activeGeneration)
 
         if (!cancelled) {
           setPokemon(result)
@@ -118,11 +124,11 @@ export function PokedexPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [activeGeneration])
 
-  const pokemonByGeneration = useMemo(() => {
+  const filteredPokemon = useMemo(() => {
     const query = search.trim().toLowerCase()
-    const filtered = query
+    const result = query
       ? pokemon.filter(
           (item) =>
             item.name.toLowerCase().includes(query) ||
@@ -130,30 +136,11 @@ export function PokedexPage() {
         )
       : pokemon
 
-    return generations
-      .map((generation) => ({
-        ...generation,
-        pokemon: filtered.filter((item) => item.generation === generation.id),
-      }))
-      .filter((generation) => generation.pokemon.length > 0)
+    return [...result].sort((a, b) => a.id - b.id)
   }, [pokemon, search])
 
-  const sortedPokemonByGeneration = useMemo(
-    () =>
-      pokemonByGeneration.map((generation) => ({
-        ...generation,
-        pokemon: [...generation.pokemon].sort((a, b) => {
-          const aFavorite = favoritePokemonIds.includes(a.id)
-          const bFavorite = favoritePokemonIds.includes(b.id)
-
-          if (aFavorite !== bFavorite) {
-            return aFavorite ? -1 : 1
-          }
-
-          return a.id - b.id
-        }),
-      })),
-    [favoritePokemonIds, pokemonByGeneration]
+  const currentGeneration = generations.find(
+    (generation) => generation.id === activeGeneration
   )
 
   useEffect(() => {
@@ -162,11 +149,8 @@ export function PokedexPage() {
     }
 
     let cancelled = false
-    const visiblePokemon = sortedPokemonByGeneration
-      .flatMap((generation) => generation.pokemon)
-      .slice(0, 40)
-    const missingPokemon = visiblePokemon.filter(
-      (item) => !pokemonStats[item.id]
+    const missingPokemon = filteredPokemon.filter(
+      (item) => favoritePokemonIds.includes(item.id) && !pokemonStats[item.id]
     )
 
     if (missingPokemon.length === 0) {
@@ -211,7 +195,7 @@ export function PokedexPage() {
     return () => {
       cancelled = true
     }
-  }, [pokemonStats, sortedPokemonByGeneration, view])
+  }, [favoritePokemonIds, filteredPokemon, pokemonStats, view])
 
   const viewButtonLabel =
     view === "list" ? "Cambiar a cuadrícula" : "Cambiar a lista"
@@ -247,51 +231,67 @@ export function PokedexPage() {
         placeholder="Buscar Pokémon"
       />
 
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {generations.map((generation) => (
+          <Button
+            key={generation.id}
+            type="button"
+            variant={
+              activeGeneration === generation.id ? "default" : "secondary"
+            }
+            className="h-9 min-w-11 shrink-0 rounded-full px-3"
+            aria-label={generation.label}
+            title={generation.label}
+            onClick={() => setActiveGeneration(generation.id)}
+          >
+            {generation.shortLabel}
+          </Button>
+        ))}
+      </div>
+
       {loading && <PageState title="Cargando Pokémon..." />}
 
       {error && <PageState title={error} tone="danger" />}
 
-      {!loading && !error && sortedPokemonByGeneration.length === 0 && (
+      {!loading && !error && filteredPokemon.length === 0 && (
         <PageState title="No encontramos Pokémon." />
       )}
 
-      {!loading && !error && sortedPokemonByGeneration.length > 0 && (
-        <div className="space-y-10">
-          {sortedPokemonByGeneration.map((generation) => (
-            <PageSection
-              key={generation.id}
-              title={generation.label}
-              meta={generation.pokemon.length}
-            >
-              {view === "list" ? (
-                <PokedexPokemonList
-                  pokemon={generation.pokemon}
-                  stats={Object.fromEntries(
-                    generation.pokemon.map((item) => {
-                      const cardIds = pokemonStats[item.id]?.cardIds
+      {!loading && !error && filteredPokemon.length > 0 && (
+        <PageSection
+          title={currentGeneration?.label ?? "Generación"}
+          meta={filteredPokemon.length}
+        >
+          {view === "list" ? (
+            <PokedexPokemonList
+              pokemon={filteredPokemon}
+              stats={Object.fromEntries(
+                filteredPokemon.map((item) => {
+                  const cardIds = pokemonStats[item.id]?.cardIds
+                  const favorite = favoritePokemonIds.includes(item.id)
 
-                      return [
-                        item.id,
-                        {
+                  return [
+                    item.id,
+                    favorite
+                      ? {
                           owned: cardIds?.filter((cardId) =>
                             ownedCardIds.includes(cardId)
                           ).length,
                           total: cardIds?.length,
-                        },
-                      ]
-                    })
-                  )}
-                  onSelect={(item) => navigate(`/pokedex/${item.id}`)}
-                />
-              ) : (
-                <PokedexPokemonGrid
-                  pokemon={generation.pokemon}
-                  onSelect={(item) => navigate(`/pokedex/${item.id}`)}
-                />
+                        }
+                      : {},
+                  ]
+                })
               )}
-            </PageSection>
-          ))}
-        </div>
+              onSelect={(item) => navigate(`/pokedex/${item.id}`)}
+            />
+          ) : (
+            <PokedexPokemonGrid
+              pokemon={filteredPokemon}
+              onSelect={(item) => navigate(`/pokedex/${item.id}`)}
+            />
+          )}
+        </PageSection>
       )}
     </Page>
   )

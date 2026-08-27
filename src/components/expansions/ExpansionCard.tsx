@@ -28,6 +28,8 @@ export function ExpansionCard({ expansion, onClick }: ExpansionCardProps) {
       : Math.min(100, Math.round((owned / expansion.total) * 100))
 
   const artwork = expansion.logo ?? expansion.symbol
+  const isPromo = expansion.official === 0
+  const hasArtwork = Boolean(artwork)
 
   return (
     <div className="grid min-h-20 grid-cols-[4rem_1fr_auto] items-center gap-3 rounded-xl border bg-card p-2 pr-3 transition-colors hover:bg-accent">
@@ -76,7 +78,28 @@ export function ExpansionCard({ expansion, onClick }: ExpansionCardProps) {
         onClick={onClick}
         className="min-w-0 py-1 text-left"
       >
-        <p className="truncate text-base font-bold">{expansion.name}</p>
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate text-base font-bold">{expansion.name}</p>
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground uppercase">
+            {expansion.id}
+          </span>
+        </div>
+
+        {(isPromo || !hasArtwork) && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {isPromo && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                Promo
+              </span>
+            )}
+
+            {!hasArtwork && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                Sin arte
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="mt-1.5 flex items-center gap-2">
           <span className="shrink-0 text-xs text-muted-foreground">

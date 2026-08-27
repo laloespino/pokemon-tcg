@@ -4,13 +4,23 @@ import type { PokemonArtist } from "@/types/artist"
 import type { PokemonCard } from "@/types/card"
 import type { PokemonExpansion } from "@/types/expansion"
 import type { PokedexPokemon } from "@/types/pokemon"
+import type { PokemonRegion } from "@/types/region"
 import type {
   Set as TCGdexSet,
   SetResume as TCGdexSetResume,
 } from "@tcgdex/sdk"
 
-const TCGDEX_API = "https://api.tcgdex.net/v2/en"
+const TCGDEX_API_ROOT = "https://api.tcgdex.net/v2"
+const TCGDEX_API = `${TCGDEX_API_ROOT}/en`
+const TCGDEX_JAPANESE_API = `${TCGDEX_API_ROOT}/ja`
 const POKEAPI = "https://pokeapi.co/api/v2"
+const TCG_POCKET_SERIES_ID = "tcgp"
+
+const TCGDEX_REGIONS: PokemonRegion[] = [
+  { id: "en", label: "Inglés internacional", flag: "🇺🇸" },
+  { id: "es", label: "Español", flag: "🇪🇸" },
+  { id: "ja", label: "Japonés", flag: "🇯🇵" },
+]
 
 function cached<T>(
   cache: Map<string, Promise<T>>,
@@ -43,6 +53,15 @@ const pokemonCardsCache = new Map<string, Promise<PokemonCard[]>>()
 const cardSearchCache = new Map<string, Promise<PokemonCard[]>>()
 const cardCache = new Map<string, Promise<PokemonCard | null>>()
 const setCardsCache = new Map<string, Promise<PokemonCard[]>>()
+const pocketSetIdsCache = new Map<string, Promise<Set<string>>>()
+const setRegionMapCache = new Map<
+  string,
+  Promise<Map<string, PokemonRegion[]>>
+>()
+const japaneseCardImagesCache = new Map<
+  string,
+  Promise<PokemonCard["images"] | null>
+>()
 
 function imageUrl(image: string | undefined, quality: "low" | "high") {
   if (!image) {
@@ -81,6 +100,7 @@ type TCGdexCardResponse = {
   set?: {
     id: string
     name: string
+    releaseDate?: string
   }
   pricing?: {
     tcgplayer?: {
@@ -96,10 +116,25 @@ type TCGdexCardResume = {
   localId: string | number
   name: string
   image?: string
+  dexId?: number[]
 }
 
 type TCGdexCardsEndpointResponse = {
   cards: TCGdexCardResume[]
+}
+
+type TCGdexSetResumeResponse = {
+  id?: string
+}
+
+type TCGdexCardImageResponse = {
+  image?: string
+}
+
+type TCGdexSeriesResponse = {
+  sets?: Array<{
+    id?: string
+  }>
 }
 
 type PokeApiGenerationResponse = {
@@ -171,7 +206,10 @@ function mapTcgplayerPricing(card: TCGdexCardResponse): PokemonCard["pricing"] {
   }
 }
 
-function mapCard(card: TCGdexCardResponse): PokemonCard {
+function mapCard(
+  card: TCGdexCardResponse,
+  regionMap?: Map<string, PokemonRegion[]>
+): PokemonCard {
   return {
     id: card.id,
     name: card.name,
@@ -189,6 +227,8 @@ function mapCard(card: TCGdexCardResponse): PokemonCard {
       ? {
           id: card.set.id,
           name: card.set.name,
+          regions: regionMap?.get(card.set.id) ?? [],
+          releaseDate: card.set.releaseDate,
         }
       : undefined,
 
@@ -241,8 +281,157 @@ function readCardsEndpoint(result: unknown) {
     : []
 }
 
+export function getPokemonRegions() {
+  return TCGDEX_REGIONS
+}
+
+async function getSetRegionMap() {
+  return cached(setRegionMapCache, "all", async () => {
+    const entries = await Promise.all(
+      TCGDEX_REGIONS.map(async (region) => {
+        try {
+          const response = await fetch(`${TCGDEX_API_ROOT}/${region.id}/sets`)
+
+          if (!response.ok) {
+            throw new Error(`Could not load sets for ${region.id}`)
+          }
+
+          const data: unknown = await response.json()
+
+          if (!Array.isArray(data)) {
+            return []
+          }
+
+          return data
+            .map((set) =>
+              typeof set === "object" && set !== null && "id" in set
+                ? (set as TCGdexSetResumeResponse).id
+                : undefined
+            )
+            .filter((setId): setId is string => typeof setId === "string")
+            .map((setId) => [setId, region] as const)
+        } catch (error) {
+          console.error(error)
+          return []
+        }
+      })
+    )
+
+    const regionMap = new Map<string, PokemonRegion[]>()
+
+    for (const [setId, region] of entries.flat()) {
+      regionMap.set(setId, [...(regionMap.get(setId) ?? []), region])
+    }
+
+    return regionMap
+  })
+}
+
+function hasCardImage(card: PokemonCard) {
+  return Boolean(card.images.small || card.images.large)
+}
+
+async function getJapaneseCardImages(cardId: string) {
+  return cached(japaneseCardImagesCache, cardId, async () => {
+    try {
+      const response = await fetch(
+        `${TCGDEX_JAPANESE_API}/cards/${encodeURIComponent(cardId)}`
+      )
+
+      if (response.status === 404) {
+        return null
+      }
+
+      if (!response.ok) {
+        throw new Error(`Could not load Japanese image for card ${cardId}`)
+      }
+
+      const data: unknown = await response.json()
+      const image =
+        typeof data === "object" &&
+        data !== null &&
+        "image" in data &&
+        typeof (data as TCGdexCardImageResponse).image === "string"
+          ? (data as TCGdexCardImageResponse).image
+          : undefined
+
+      if (!image) {
+        return null
+      }
+
+      return {
+        small: imageUrl(image, "low"),
+        large: imageUrl(image, "high"),
+      }
+    } catch (error) {
+      console.error(error)
+      return null
+    }
+  })
+}
+
+async function withJapaneseImageFallback(card: PokemonCard) {
+  if (hasCardImage(card)) {
+    return card
+  }
+
+  const images = await getJapaneseCardImages(card.id)
+
+  return images
+    ? {
+        ...card,
+        images,
+      }
+    : card
+}
+
+async function withJapaneseImageFallbacks(cards: PokemonCard[]) {
+  return Promise.all(cards.map((card) => withJapaneseImageFallback(card)))
+}
+
 async function getExpansionCached(setId: string) {
   return getExpansionById(setId)
+}
+
+async function getPocketSetIds() {
+  return cached(pocketSetIdsCache, TCG_POCKET_SERIES_ID, async () => {
+    try {
+      const response = await fetch(
+        `${TCGDEX_API}/series/${TCG_POCKET_SERIES_ID}`
+      )
+
+      if (!response.ok) {
+        throw new Error("Could not load TCG Pocket series")
+      }
+
+      const data: unknown = await response.json()
+      const sets: unknown[] =
+        typeof data === "object" &&
+        data !== null &&
+        Array.isArray((data as TCGdexSeriesResponse).sets)
+          ? ((data as TCGdexSeriesResponse).sets ?? [])
+          : []
+
+      return new Set(
+        sets
+          .map((set) =>
+            typeof set === "object" && set !== null && "id" in set
+              ? set.id
+              : undefined
+          )
+          .filter((setId): setId is string => typeof setId === "string")
+      )
+    } catch (error) {
+      console.error(error)
+      return new Set<string>()
+    }
+  })
+}
+
+async function filterPocketCards<T extends { id: string }>(cards: T[]) {
+  const pocketSetIds = await getPocketSetIds()
+
+  return cards.filter((card) => !pocketSetIds.has(setIdFromCardId(card.id)))
 }
 
 async function loadExpansionsForCards(cards: TCGdexCardResume[]) {
@@ -280,10 +469,13 @@ function mapCardResume(
     name: card.name,
     number: String(card.localId),
     artist,
+    dexId: card.dexId,
     set: expansion
       ? {
           id: setId,
           name: expansion.name,
+          regions: expansion.regions,
+          releaseDate: expansion.releaseDate,
         }
       : undefined,
     images: {
@@ -309,13 +501,18 @@ function sortCardsBySetRelease(
   })
 }
 
-function mapExpansion(set: TCGdexSet | TCGdexSetResume): PokemonExpansion {
+function mapExpansion(
+  set: TCGdexSet | TCGdexSetResume,
+  regionMap?: Map<string, PokemonRegion[]>
+): PokemonExpansion {
   return {
     id: set.id,
     name: set.name,
     logo: assetUrl(set.logo),
     symbol: assetUrl(set.symbol),
+    seriesId: "serie" in set ? set.serie.id : undefined,
     series: "serie" in set ? set.serie.name : undefined,
+    regions: regionMap?.get(set.id) ?? [],
     releaseDate: "releaseDate" in set ? set.releaseDate : undefined,
     total: set.cardCount.total,
     official: set.cardCount.official,
@@ -330,27 +527,73 @@ export async function getExpansions(): Promise<PokemonExpansion[]> {
       return []
     }
 
-    return sets
-      .map(mapExpansion)
-      .sort(
-        (a, b) =>
-          (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "") ||
-          a.name.localeCompare(b.name)
+    const [pocketSetIds, regionMap] = await Promise.all([
+      getPocketSetIds(),
+      getSetRegionMap(),
+    ])
+    const resumes = sets
+      .map((set) => mapExpansion(set, regionMap))
+      .filter((expansion) => !pocketSetIds.has(expansion.id))
+    const expansions = await Promise.all(
+      resumes.map(async (expansion) => {
+        if (expansion.releaseDate) {
+          return expansion
+        }
+
+        try {
+          return (await getExpansionCached(expansion.id)) ?? expansion
+        } catch (error) {
+          console.error(`Could not load expansion ${expansion.id}`, error)
+          return expansion
+        }
+      })
+    )
+
+    return expansions
+      .filter(
+        (expansion) =>
+          expansion.seriesId !== TCG_POCKET_SERIES_ID &&
+          !pocketSetIds.has(expansion.id)
       )
+      .sort(compareExpansionsByReleaseDateDesc)
   })
+}
+
+function compareExpansionsByReleaseDateDesc(
+  a: PokemonExpansion,
+  b: PokemonExpansion
+) {
+  if (a.releaseDate && b.releaseDate) {
+    return (
+      b.releaseDate.localeCompare(a.releaseDate) || a.name.localeCompare(b.name)
+    )
+  }
+
+  if (a.releaseDate) {
+    return -1
+  }
+
+  if (b.releaseDate) {
+    return 1
+  }
+
+  return a.name.localeCompare(b.name)
 }
 
 export async function getExpansionById(
   setId: string
 ): Promise<PokemonExpansion | null> {
   return cached(expansionCache, setId, async () => {
-    const set = await tcgdex.fetch("sets", setId)
+    const [set, regionMap] = await Promise.all([
+      tcgdex.fetch("sets", setId),
+      getSetRegionMap(),
+    ])
 
     if (!set) {
       return null
     }
 
-    return mapExpansion(set)
+    return mapExpansion(set, regionMap)
   })
 }
 
@@ -501,14 +744,16 @@ export async function getCardsByArtist(artist: string): Promise<PokemonCard[]> {
       return []
     }
 
-    const cardResumes = cards.filter(isCardResume)
+    const cardResumes = await filterPocketCards(cards.filter(isCardResume))
     const expansionsBySetId = await loadExpansionsForCards(cardResumes)
 
-    return sortCardsBySetRelease(
-      cardResumes.map((card) =>
-        mapCardResume(card, expansionsBySetId, normalizedArtist)
-      ),
-      expansionsBySetId
+    return withJapaneseImageFallbacks(
+      sortCardsBySetRelease(
+        cardResumes.map((card) =>
+          mapCardResume(card, expansionsBySetId, normalizedArtist)
+        ),
+        expansionsBySetId
+      )
     )
   })
 }
@@ -525,14 +770,16 @@ export async function getCardsByPokemonId(
       throw new Error(`Could not load Pokémon ${pokemonId} cards`)
     }
 
-    const cardResumes = readCardsEndpoint(await response.json()).filter(
-      isCardResume
+    const cardResumes = await filterPocketCards(
+      readCardsEndpoint(await response.json()).filter(isCardResume)
     )
     const expansionsBySetId = await loadExpansionsForCards(cardResumes)
 
-    return sortCardsBySetRelease(
-      cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
-      expansionsBySetId
+    return withJapaneseImageFallbacks(
+      sortCardsBySetRelease(
+        cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
+        expansionsBySetId
+      )
     )
   })
 }
@@ -557,21 +804,26 @@ export async function searchCards(query: string): Promise<PokemonCard[]> {
       return []
     }
 
-    const cardResumes = data
-      .filter(isCardResume)
-      .filter(
-        (card) =>
-          card.name.toLowerCase().includes(normalizedQuery) ||
-          card.id.toLowerCase().includes(normalizedQuery) ||
-          String(card.localId).includes(normalizedQuery)
+    const cardResumes = (
+      await filterPocketCards(
+        data
+          .filter(isCardResume)
+          .filter(
+            (card) =>
+              card.name.toLowerCase().includes(normalizedQuery) ||
+              card.id.toLowerCase().includes(normalizedQuery) ||
+              String(card.localId).includes(normalizedQuery)
+          )
       )
-      .slice(0, 120)
+    ).slice(0, 120)
 
     const expansionsBySetId = await loadExpansionsForCards(cardResumes)
 
-    return sortCardsBySetRelease(
-      cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
-      expansionsBySetId
+    return withJapaneseImageFallbacks(
+      sortCardsBySetRelease(
+        cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
+        expansionsBySetId
+      )
     )
   })
 }
@@ -626,7 +878,16 @@ export async function getCardById(id: string): Promise<PokemonCard | null> {
 
     const card: TCGdexCardResponse = await response.json()
 
-    return mapCard(card)
+    const [pocketSetIds, regionMap] = await Promise.all([
+      getPocketSetIds(),
+      getSetRegionMap(),
+    ])
+
+    if (pocketSetIds.has(setIdFromCardId(card.id))) {
+      return null
+    }
+
+    return withJapaneseImageFallback(mapCard(card, regionMap))
   })
 }
 
@@ -644,17 +905,25 @@ export async function getCardsByIds(ids: string[]): Promise<PokemonCard[]> {
 type TCGdexSetCardsResponse = {
   id: string
   name: string
+  releaseDate?: string
 
   cards: Array<{
     id: string
     localId: string | number
     name: string
     image?: string
+    dexId?: number[]
   }>
 }
 
 export async function getCardsBySet(setId: string): Promise<PokemonCard[]> {
   return cached(setCardsCache, setId, async () => {
+    const pocketSetIds = await getPocketSetIds()
+
+    if (pocketSetIds.has(setId)) {
+      return []
+    }
+
     const response = await fetch(
       `${TCGDEX_API}/sets/${encodeURIComponent(setId)}`
     )
@@ -664,22 +933,29 @@ export async function getCardsBySet(setId: string): Promise<PokemonCard[]> {
     }
 
     const set: TCGdexSetCardsResponse = await response.json()
+    const regionMap = await getSetRegionMap()
+    const regions = regionMap.get(set.id) ?? []
 
-    return set.cards.map((card) => ({
-      id: card.id,
-      name: card.name,
-      number: String(card.localId),
+    return withJapaneseImageFallbacks(
+      set.cards.map((card) => ({
+        id: card.id,
+        name: card.name,
+        number: String(card.localId),
+        dexId: card.dexId,
 
-      set: {
-        id: set.id,
-        name: set.name,
-      },
+        set: {
+          id: set.id,
+          name: set.name,
+          regions,
+          releaseDate: set.releaseDate,
+        },
 
-      images: {
-        small: imageUrl(card.image, "low"),
+        images: {
+          small: imageUrl(card.image, "low"),
 
-        large: imageUrl(card.image, "high"),
-      },
-    }))
+          large: imageUrl(card.image, "high"),
+        },
+      }))
+    )
   })
 }

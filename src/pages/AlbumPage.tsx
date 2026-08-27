@@ -28,6 +28,9 @@ import type { PokemonCard } from "@/types/card"
 
 type SearchMode = "pokemon" | "artist"
 
+const WISHLIST_ALBUM_ID = "wishlist"
+const EMPTY_CARD_IDS: string[] = []
+
 const modes: Array<{
   value: SearchMode
   label: string
@@ -46,6 +49,7 @@ export function AlbumPage() {
   const { albumId } = useParams()
   const albums = useCollectionStore((state) => state.albums)
   const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
+  const wishlistCardIds = useCollectionStore((state) => state.wishlistCardIds)
   const renameAlbum = useCollectionStore((state) => state.renameAlbum)
   const setAlbumCardsInStore = useCollectionStore(
     (state) => state.setAlbumCards
@@ -55,6 +59,13 @@ export function AlbumPage() {
     (state) => state.saveCardSnapshots
   )
   const album = albums.find((item) => item.id === albumId)
+  const isWishlistAlbum = albumId === WISHLIST_ALBUM_ID
+  const albumCardIds = isWishlistAlbum
+    ? wishlistCardIds
+    : (album?.cardIds ?? EMPTY_CARD_IDS)
+  const currentAlbumName = isWishlistAlbum
+    ? "Lista de deseos"
+    : (album?.name ?? "")
   const [albumCards, setAlbumCards] = useState<PokemonCard[]>([])
   const [editingName, setEditingName] = useState(false)
   const [albumName, setAlbumName] = useState("")
@@ -72,13 +83,14 @@ export function AlbumPage() {
 
     async function loadAlbumCards() {
       const snapshotCards =
-        album?.cardIds
+        albumCardIds
           .map((cardId) => cardSnapshots[cardId])
           .filter((card): card is PokemonCard => Boolean(card)) ?? []
-      const missingCardIds =
-        album?.cardIds.filter((cardId) => !cardSnapshots[cardId]) ?? []
+      const missingCardIds = albumCardIds.filter(
+        (cardId) => !cardSnapshots[cardId]
+      )
 
-      if (!album || album.cardIds.length === 0) {
+      if (albumCardIds.length === 0) {
         setAlbumCards([])
         setLoadingAlbum(false)
         return
@@ -108,7 +120,7 @@ export function AlbumPage() {
     return () => {
       cancelled = true
     }
-  }, [album, cardSnapshots, saveCardSnapshots])
+  }, [albumCardIds, cardSnapshots, saveCardSnapshots])
 
   useEffect(() => {
     const trimmedQuery = query.trim()
@@ -155,6 +167,10 @@ export function AlbumPage() {
   }, [mode, query, saveCardSnapshots, searchOpen])
 
   function openSearch() {
+    if (isWishlistAlbum) {
+      return
+    }
+
     setDraftSelectedCardIds(album?.cardIds ?? [])
     setQuery("")
     setResults([])
@@ -179,7 +195,7 @@ export function AlbumPage() {
   }
 
   function acceptSearch() {
-    if (!album) {
+    if (!album || isWishlistAlbum) {
       return
     }
 
@@ -196,7 +212,7 @@ export function AlbumPage() {
   }
 
   function saveAlbumName() {
-    if (!album) {
+    if (!album || isWishlistAlbum) {
       return
     }
 
@@ -205,12 +221,16 @@ export function AlbumPage() {
   }
 
   function cancelAlbumNameEdit() {
-    setAlbumName(album?.name ?? "")
+    setAlbumName(currentAlbumName)
     setEditingName(false)
   }
 
   function startAlbumNameEdit() {
-    setAlbumName(album?.name ?? "")
+    if (isWishlistAlbum) {
+      return
+    }
+
+    setAlbumName(currentAlbumName)
     setEditingName(true)
   }
 
@@ -229,7 +249,7 @@ export function AlbumPage() {
     })
   }
 
-  if (!album) {
+  if (!album && !isWishlistAlbum) {
     return (
       <Page>
         <PageHeader title="Álbum no encontrado" />
@@ -243,14 +263,16 @@ export function AlbumPage() {
     )
   }
 
-  const ownedInAlbum = album.cardIds.filter((cardId) =>
+  const ownedInAlbum = albumCardIds.filter((cardId) =>
     ownedCardIds.includes(cardId)
   ).length
   const resultIds = results.map((card) => card.id)
   const allResultsSelected =
     resultIds.length > 0 &&
     resultIds.every((cardId) => draftSelectedCardIds.includes(cardId))
-  const title = editingName ? (
+  const title = isWishlistAlbum ? (
+    <h1 className="truncate text-2xl font-bold">Lista de deseos</h1>
+  ) : editingName ? (
     <div className="flex items-center gap-2">
       <Input
         value={albumName}
@@ -294,7 +316,7 @@ export function AlbumPage() {
       className="flex max-w-full items-center gap-2 text-left"
       aria-label="Editar nombre del álbum"
     >
-      <h1 className="truncate text-2xl font-bold">{album.name}</h1>
+      <h1 className="truncate text-2xl font-bold">{currentAlbumName}</h1>
       <Pencil className="size-4 shrink-0 text-muted-foreground" />
     </button>
   )
@@ -305,17 +327,23 @@ export function AlbumPage() {
 
       <PageHeader
         title={title}
-        meta={`${ownedInAlbum} de ${album.cardIds.length} cartas`}
+        meta={
+          isWishlistAlbum
+            ? `${albumCardIds.length} cartas`
+            : `${ownedInAlbum} de ${albumCardIds.length} cartas`
+        }
         action={
-          <Button
-            type="button"
-            size="icon-lg"
-            className="size-11 rounded-full"
-            aria-label="Agregar cartas"
-            onClick={openSearch}
-          >
-            <Plus className="size-5" />
-          </Button>
+          !isWishlistAlbum && (
+            <Button
+              type="button"
+              size="icon-lg"
+              className="size-11 rounded-full"
+              aria-label="Agregar cartas"
+              onClick={openSearch}
+            >
+              <Plus className="size-5" />
+            </Button>
+          )
         }
       />
 
@@ -352,7 +380,9 @@ export function AlbumPage() {
               </Button>
 
               <div className="min-w-0 text-center">
-                <p className="truncate text-base font-bold">{album.name}</p>
+                <p className="truncate text-base font-bold">
+                  {currentAlbumName}
+                </p>
                 <p className="text-xs text-white/60">
                   {draftSelectedCardIds.length} seleccionadas
                 </p>
@@ -442,7 +472,14 @@ export function AlbumPage() {
       {loadingAlbum && <PageState title="Cargando álbum..." size="compact" />}
 
       {!loadingAlbum && albumCards.length === 0 && (
-        <PageState title="Este álbum todavía está vacío." size="compact" />
+        <PageState
+          title={
+            isWishlistAlbum
+              ? "Tu lista de deseos está vacía."
+              : "Este álbum todavía está vacío."
+          }
+          size="compact"
+        />
       )}
 
       {!loadingAlbum && albumCards.length > 0 && (
