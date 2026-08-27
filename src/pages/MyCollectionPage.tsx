@@ -1,7 +1,4 @@
-import {
-  useEffect,
-  useState,
-} from "react"
+import { useEffect, useState } from "react"
 
 import { Images } from "lucide-react"
 
@@ -14,24 +11,24 @@ import { useCollectionStore } from "@/store/collection-store"
 import type { PokemonCard } from "@/types/card"
 
 export function MyCollectionPage() {
-  const ownedCardIds = useCollectionStore(
-    (state) => state.ownedCardIds,
-  )
+  const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
+  const wishlistCardIds = useCollectionStore((state) => state.wishlistCardIds)
 
-  const [cards, setCards] =
-    useState<PokemonCard[]>([])
+  const [cards, setCards] = useState<PokemonCard[]>([])
 
-  const [loading, setLoading] =
-    useState(true)
+  const [loading, setLoading] = useState(true)
 
-  const [error, setError] =
-    useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
     async function loadCards() {
-      if (ownedCardIds.length === 0) {
+      const collectionCardIds = Array.from(
+        new Set([...ownedCardIds, ...wishlistCardIds])
+      )
+
+      if (collectionCardIds.length === 0) {
         setCards([])
         setLoading(false)
 
@@ -42,10 +39,7 @@ export function MyCollectionPage() {
         setLoading(true)
         setError(null)
 
-        const result =
-          await getCardsByIds(
-            ownedCardIds,
-          )
+        const result = await getCardsByIds(collectionCardIds)
 
         if (!cancelled) {
           setCards(result)
@@ -54,9 +48,7 @@ export function MyCollectionPage() {
         console.error(error)
 
         if (!cancelled) {
-          setError(
-            "Could not load your collection.",
-          )
+          setError("No pudimos cargar tu colección.")
         }
       } finally {
         if (!cancelled) {
@@ -70,64 +62,49 @@ export function MyCollectionPage() {
     return () => {
       cancelled = true
     }
-  }, [ownedCardIds])
+  }, [ownedCardIds, wishlistCardIds])
+
+  const totalCards = new Set([...ownedCardIds, ...wishlistCardIds]).size
 
   return (
     <div>
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold">
-          My Collection
-        </h1>
+      <div className="mb-5 text-center">
+        <h1 className="text-2xl font-bold">Mi colección</h1>
 
         <p className="mt-1 text-sm text-muted-foreground">
-          {ownedCardIds.length}{" "}
-          {ownedCardIds.length === 1
-            ? "card"
-            : "cards"}{" "}
-          owned
+          {ownedCardIds.length} en propiedad · {wishlistCardIds.length} deseadas
         </p>
       </div>
 
       {loading && (
         <div className="py-12 text-center">
           <p className="text-sm text-muted-foreground">
-            Loading your cards...
+            Cargando tus cartas...
           </p>
         </div>
       )}
 
       {error && (
         <div className="py-12 text-center">
-          <p className="text-sm text-destructive">
-            {error}
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && totalCards === 0 && (
+        <div className="py-16 text-center">
+          <Images className="mx-auto mb-3 size-9 text-muted-foreground" />
+
+          <p className="font-medium">Tu colección está vacía</p>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            Agrega cartas en propiedad o a tu lista de deseos.
           </p>
         </div>
       )}
 
-      {!loading &&
-        !error &&
-        ownedCardIds.length === 0 && (
-          <div className="py-16 text-center">
-            <Images className="mx-auto mb-3 size-9 text-muted-foreground" />
-
-            <p className="font-medium">
-              Your collection is empty
-            </p>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              Open a card and tap
-              "Add to my collection".
-            </p>
-          </div>
-        )}
-
-      {!loading &&
-        !error &&
-        cards.length > 0 && (
-          <PokemonCardGrid
-            cards={cards}
-          />
-        )}
+      {!loading && !error && cards.length > 0 && (
+        <PokemonCardGrid cards={cards} />
+      )}
     </div>
   )
 }

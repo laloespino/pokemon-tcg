@@ -5,6 +5,21 @@ export type PokemonCard = {
 
   artist?: string
   rarity?: string
+  category?: string
+  dexId?: number[]
+  types?: string[]
+  regulationMark?: string
+
+  pricing?: {
+    source: "tcgplayer"
+    variant: string
+    currency: string
+    updated?: string
+    low?: number
+    mid?: number
+    high?: number
+    market?: number
+  }
 
   set?: {
     id: string

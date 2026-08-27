@@ -1,10 +1,5 @@
-import { NavLink } from "react-router-dom"
-import {
-  BookOpen,
-  Heart,
-  Images,
-  Palette,
-} from "lucide-react"
+import { NavLink, useLocation } from "react-router-dom"
+import { BookOpen, Folder, Images, Layers3, Palette } from "lucide-react"
 
 const links = [
   {
@@ -14,52 +9,85 @@ const links = [
   },
   {
     to: "/artists",
-    label: "Artists",
+    label: "Artista",
     icon: Palette,
   },
   {
     to: "/collection",
-    label: "Collection",
+    label: "Colección",
     icon: Images,
+    featured: true,
   },
   {
-    to: "/favorites",
-    label: "Favorites",
-    icon: Heart,
+    to: "/expansions",
+    label: "Expansiones",
+    icon: Layers3,
+  },
+  {
+    to: "/albums",
+    label: "Álbumes",
+    icon: Folder,
   },
 ]
 
 export function MobileNavbar() {
+  const location = useLocation()
+
   return (
-    <nav
-      className="
-        fixed
-        inset-x-0
-        bottom-0
-        z-50
-        border-t
-        bg-background/95
-        backdrop-blur
-        md:hidden
-      "
-    >
-      <div className="grid grid-cols-4 pb-[env(safe-area-inset-bottom)]">
-        {links.map(({ to, label, icon: Icon }) => (
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/95 backdrop-blur md:hidden">
+      <div className="grid grid-cols-5 pb-[env(safe-area-inset-bottom)]">
+        {links.map(({ to, label, icon: Icon, featured }) => (
           <NavLink
             key={to}
             to={to}
-            className={({ isActive }) =>
-              [
-                "flex min-h-16 flex-col items-center justify-center gap-1 text-xs",
-                isActive
-                  ? "text-primary"
-                  : "text-muted-foreground",
-              ].join(" ")
-            }
-          >
-            <Icon className="size-5" />
+            className={({ isActive }) => {
+              const active =
+                isActive ||
+                (to === "/" && location.pathname.startsWith("/pokedex/")) ||
+                (to === "/albums" &&
+                  location.pathname.startsWith("/albums/")) ||
+                (to === "/expansions" &&
+                  (location.pathname.startsWith("/expansions/") ||
+                    location.pathname.startsWith("/collections/")))
 
-            <span>{label}</span>
+              return [
+                "flex min-h-16 flex-col items-center justify-center gap-1 text-[11px]",
+                featured ? "relative -mt-5" : "",
+                active ? "text-primary" : "text-muted-foreground",
+              ].join(" ")
+            }}
+          >
+            {({ isActive }) => {
+              const active =
+                isActive ||
+                (to === "/" && location.pathname.startsWith("/pokedex/")) ||
+                (to === "/albums" &&
+                  location.pathname.startsWith("/albums/")) ||
+                (to === "/expansions" &&
+                  (location.pathname.startsWith("/expansions/") ||
+                    location.pathname.startsWith("/collections/")))
+
+              return (
+                <>
+                  <span
+                    className={
+                      featured
+                        ? [
+                            "flex size-14 items-center justify-center rounded-full border bg-background shadow-lg",
+                            active
+                              ? "border-primary/30 bg-primary text-primary-foreground"
+                              : "border-border text-muted-foreground",
+                          ].join(" ")
+                        : ""
+                    }
+                  >
+                    <Icon className={featured ? "size-7" : "size-5"} />
+                  </span>
+
+                  <span className={featured ? "text-[10px]" : ""}>{label}</span>
+                </>
+              )
+            }}
           </NavLink>
         ))}
       </div>

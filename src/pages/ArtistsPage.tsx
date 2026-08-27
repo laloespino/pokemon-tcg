@@ -1,32 +1,36 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { useNavigate } from "react-router-dom"
 
 import { ArtistCard } from "@/components/artists/ArtistCard"
 import { ArtistSearch } from "@/components/artists/ArtistSearch"
 
-import { getArtists } from "@/services/pokemon-service"
+import { getArtists, getCardsByArtist } from "@/services/pokemon-service"
+import { useCollectionStore } from "@/store/collection-store"
 
 import type { PokemonArtist } from "@/types/artist"
 
 export function ArtistsPage() {
   const navigate = useNavigate()
 
-  const [artists, setArtists] =
-    useState<PokemonArtist[]>([])
+  const [artists, setArtists] = useState<PokemonArtist[]>([])
 
-  const [search, setSearch] =
-    useState("")
+  const [search, setSearch] = useState("")
 
-  const [loading, setLoading] =
-    useState(true)
+  const [loading, setLoading] = useState(true)
 
-  const [error, setError] =
-    useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [artistStats, setArtistStats] = useState<
+    Record<
+      string,
+      {
+        cardIds: string[]
+      }
+    >
+  >({})
+
+  const favoriteArtists = useCollectionStore((state) => state.favoriteArtists)
+  const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
 
   useEffect(() => {
     let cancelled = false
@@ -36,8 +40,7 @@ export function ArtistsPage() {
         setLoading(true)
         setError(null)
 
-        const result =
-          await getArtists()
+        const result = await getArtists()
 
         if (!cancelled) {
           setArtists(result)
@@ -46,9 +49,7 @@ export function ArtistsPage() {
         console.error(error)
 
         if (!cancelled) {
-          setError(
-            "Could not load artists.",
-          )
+          setError("No pudimos cargar los artistas.")
         }
       } finally {
         if (!cancelled) {
@@ -64,101 +65,123 @@ export function ArtistsPage() {
     }
   }, [])
 
-  const filteredArtists =
-    useMemo(() => {
-      const query = search
-        .trim()
-        .toLowerCase()
+  const filteredArtists = useMemo(() => {
+    const query = search.trim().toLowerCase()
 
-      if (!query) {
-        return []
-      }
-
-      return artists.filter(
-        (artist) =>
-          artist.name
-            .toLowerCase()
-            .includes(query),
+    return artists
+      .filter((artist) =>
+        query ? artist.name.toLowerCase().includes(query) : true
       )
-    }, [artists, search])
+      .sort((a, b) => {
+        const aFavorite = favoriteArtists.includes(a.name)
+        const bFavorite = favoriteArtists.includes(b.name)
+
+        if (aFavorite !== bFavorite) {
+          return aFavorite ? -1 : 1
+        }
+
+        return a.name.localeCompare(b.name)
+      })
+  }, [artists, favoriteArtists, search])
+
+  useEffect(() => {
+    let cancelled = false
+    const visibleArtists = filteredArtists.slice(0, 40)
+    const missingArtists = visibleArtists.filter(
+      (artist) => !artistStats[artist.name]
+    )
+
+    if (missingArtists.length === 0) {
+      return
+    }
+
+    async function loadArtistStats() {
+      const results = await Promise.all(
+        missingArtists.map(async (artist) => {
+          try {
+            const cards = await getCardsByArtist(artist.name)
+
+            return [
+              artist.name,
+              {
+                cardIds: cards.map((card) => card.id),
+              },
+            ] as const
+          } catch (error) {
+            console.error(`Could not load stats for ${artist.name}`, error)
+
+            return [
+              artist.name,
+              {
+                cardIds: [],
+              },
+            ] as const
+          }
+        })
+      )
+
+      if (!cancelled) {
+        setArtistStats((previous) => ({
+          ...previous,
+          ...Object.fromEntries(results),
+        }))
+      }
+    }
+
+    loadArtistStats()
+
+    return () => {
+      cancelled = true
+    }
+  }, [artistStats, filteredArtists])
 
   return (
     <div>
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold">
-          Artists
-        </h1>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Discover Pokémon TCG illustrators.
-        </p>
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold">Artistas</h1>
       </div>
 
-      <ArtistSearch
-        value={search}
-        onChange={setSearch}
-      />
+      <ArtistSearch value={search} onChange={setSearch} className="mb-6" />
 
       {loading && (
         <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            Loading artists...
-          </p>
+          <p className="text-sm text-muted-foreground">Cargando artistas...</p>
         </div>
       )}
 
       {error && (
         <div className="py-12 text-center">
-          <p className="text-sm text-destructive">
-            {error}
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && filteredArtists.length === 0 && (
+        <div className="py-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            No encontramos artistas.
           </p>
         </div>
       )}
 
-      {!loading &&
-        !error &&
-        !search.trim() && (
-          <div className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              Search for an artist.
-            </p>
-          </div>
-        )}
-
-      {!loading &&
-        !error &&
-        search.trim() &&
-        filteredArtists.length ===
-        0 && (
-          <div className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              No artists found.
-            </p>
-          </div>
-        )}
-
-      {!loading &&
-        !error &&
-        filteredArtists.length >
-        0 && (
-          <div className="mt-4 space-y-2">
-            {filteredArtists.map(
-              (artist) => (
-                <ArtistCard
-                  key={artist.name}
-                  artist={artist}
-                  onClick={() =>
-                    navigate(
-                      `/artists/${encodeURIComponent(
-                        artist.name,
-                      )}`,
-                    )
-                  }
-                />
-              ),
-            )}
-          </div>
-        )}
+      {!loading && !error && filteredArtists.length > 0 && (
+        <div className="space-y-2">
+          {filteredArtists.map((artist) => (
+            <ArtistCard
+              key={artist.name}
+              artist={artist}
+              owned={
+                artistStats[artist.name]?.cardIds.filter((cardId) =>
+                  ownedCardIds.includes(cardId)
+                ).length
+              }
+              total={artistStats[artist.name]?.cardIds.length}
+              onClick={() =>
+                navigate(`/artists/${encodeURIComponent(artist.name)}`)
+              }
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

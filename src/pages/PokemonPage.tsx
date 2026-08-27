@@ -1,55 +1,56 @@
 import { useEffect, useState } from "react"
-
 import { Link, useParams } from "react-router-dom"
-
-import { ArrowLeft, Heart } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 
 import { PokemonCardGrid } from "@/components/cards/PokemonCardGrid"
 
-import { getCardsByArtist } from "@/services/pokemon-service"
-
+import {
+  getCardsByPokemonId,
+  getPokedexPokemonById,
+} from "@/services/pokemon-service"
 import { useCollectionStore } from "@/store/collection-store"
 
 import type { PokemonCard } from "@/types/card"
+import type { PokedexPokemon } from "@/types/pokemon"
 
-export function ArtistPage() {
-  const { artistName } = useParams()
+export function PokemonPage() {
+  const { pokemonId } = useParams()
+  const id = Number.parseInt(pokemonId ?? "", 10)
 
-  const name = artistName ?? ""
-
+  const [pokemon, setPokemon] = useState<PokedexPokemon | null>(null)
   const [cards, setCards] = useState<PokemonCard[]>([])
-
   const [loading, setLoading] = useState(true)
-
   const [error, setError] = useState<string | null>(null)
 
-  const favorite = useCollectionStore((state) =>
-    state.favoriteArtists.includes(name)
-  )
   const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
-
-  const toggleFavoriteArtist = useCollectionStore(
-    (state) => state.toggleFavoriteArtist
-  )
 
   useEffect(() => {
     let cancelled = false
 
-    async function loadCards() {
+    async function loadPokemonCards() {
+      if (!Number.isFinite(id)) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
         setError(null)
 
-        const result = await getCardsByArtist(name)
+        const [pokemonResult, cardsResult] = await Promise.all([
+          getPokedexPokemonById(id),
+          getCardsByPokemonId(id),
+        ])
 
         if (!cancelled) {
-          setCards(result)
+          setPokemon(pokemonResult)
+          setCards(cardsResult)
         }
       } catch (error) {
         console.error(error)
 
         if (!cancelled) {
-          setError("No pudimos cargar las cartas.")
+          setError("No pudimos cargar las cartas de este Pokémon.")
         }
       } finally {
         if (!cancelled) {
@@ -58,30 +59,29 @@ export function ArtistPage() {
       }
     }
 
-    if (name) {
-      loadCards()
-    }
+    loadPokemonCards()
 
     return () => {
       cancelled = true
     }
-  }, [name])
+  }, [id])
 
   const owned = cards.filter((card) => ownedCardIds.includes(card.id)).length
+  const title = pokemon?.name ?? "Pokémon"
 
   return (
     <div>
       <Link
-        to="/artists"
+        to="/"
         className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground"
       >
         <ArrowLeft className="size-4" />
-        Artistas
+        Pokédex
       </Link>
 
       <div className="mb-5 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">{name}</h1>
+          <h1 className="truncate text-2xl font-bold">{title}</h1>
 
           {!loading && !error && (
             <p className="mt-1 text-sm text-muted-foreground">
@@ -90,36 +90,33 @@ export function ArtistPage() {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => toggleFavoriteArtist(name)}
-          aria-label={
-            favorite
-              ? `Quitar ${name} de favoritos`
-              : `Agregar ${name} a favoritos`
-          }
-          className="flex size-11 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-accent"
-        >
-          <Heart className="size-5" fill={favorite ? "currentColor" : "none"} />
-        </button>
+        {pokemon && (
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-full border">
+            <img
+              src={pokemon.sprite}
+              alt=""
+              className="h-10 w-10 object-contain drop-shadow"
+            />
+          </div>
+        )}
       </div>
 
       {loading && (
-        <div className="py-12 text-center">
+        <div className="py-16 text-center">
           <p className="text-sm text-muted-foreground">Cargando cartas...</p>
         </div>
       )}
 
       {error && (
-        <div className="py-12 text-center">
+        <div className="py-16 text-center">
           <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 
       {!loading && !error && cards.length === 0 && (
-        <div className="py-12 text-center">
+        <div className="py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            No encontramos cartas.
+            No encontramos cartas para este Pokémon.
           </p>
         </div>
       )}
