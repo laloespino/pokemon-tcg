@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { SearchInput } from "@/components/ui/search-input"
 
 import { searchCardsByMode } from "@/services/pokemon-service"
+import { useCollectionStore } from "@/store/collection-store"
 
 import type { PokemonCard } from "@/types/card"
 
@@ -31,6 +32,9 @@ export function SearchPage() {
   const [cards, setCards] = useState<PokemonCard[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const saveCardSnapshots = useCollectionStore(
+    (state) => state.saveCardSnapshots
+  )
 
   function handleQueryChange(value: string) {
     setQuery(value)
@@ -61,6 +65,7 @@ export function SearchPage() {
 
           if (!cancelled) {
             setCards(result)
+            saveCardSnapshots(result)
           }
         } catch (error) {
           console.error(error)
@@ -83,7 +88,7 @@ export function SearchPage() {
     }, 350)
 
     return () => window.clearTimeout(timeout)
-  }, [mode, query])
+  }, [mode, query, saveCardSnapshots])
 
   return (
     <Page>

@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import type { PokemonCard } from "@/types/card"
+
 type Album = {
   id: string
   name: string
@@ -13,6 +15,7 @@ type CollectionStore = {
   favoriteArtists: string[]
   favoriteExpansionIds: string[]
   favoritePokemonIds: number[]
+  cardSnapshots: Record<string, PokemonCard>
   albums: Album[]
 
   toggleOwnedCard: (cardId: string) => void
@@ -20,6 +23,8 @@ type CollectionStore = {
   toggleFavoriteArtist: (artist: string) => void
   toggleFavoriteExpansion: (expansionId: string) => void
   toggleFavoritePokemon: (pokemonId: number) => void
+  saveCardSnapshot: (card: PokemonCard) => void
+  saveCardSnapshots: (cards: PokemonCard[]) => void
   createAlbum: (name: string) => string
   deleteAlbum: (albumId: string) => void
   renameAlbum: (albumId: string, name: string) => void
@@ -35,6 +40,7 @@ export const useCollectionStore = create<CollectionStore>()(
       favoriteArtists: [],
       favoriteExpansionIds: [],
       favoritePokemonIds: [],
+      cardSnapshots: {},
       albums: [],
 
       toggleOwnedCard: (cardId) =>
@@ -96,6 +102,27 @@ export const useCollectionStore = create<CollectionStore>()(
               : [...state.favoritePokemonIds, pokemonId],
           }
         }),
+
+      saveCardSnapshot: (card) =>
+        set((state) => ({
+          cardSnapshots: {
+            ...state.cardSnapshots,
+            [card.id]: card,
+          },
+        })),
+
+      saveCardSnapshots: (cards) => {
+        if (cards.length === 0) {
+          return
+        }
+
+        set((state) => ({
+          cardSnapshots: {
+            ...state.cardSnapshots,
+            ...Object.fromEntries(cards.map((card) => [card.id, card])),
+          },
+        }))
+      },
 
       createAlbum: (name) => {
         const id =
@@ -198,6 +225,11 @@ export const useCollectionStore = create<CollectionStore>()(
           favoritePokemonIds: Array.isArray(persisted.favoritePokemonIds)
             ? persisted.favoritePokemonIds
             : currentState.favoritePokemonIds,
+          cardSnapshots:
+            typeof persisted.cardSnapshots === "object" &&
+            persisted.cardSnapshots !== null
+              ? persisted.cardSnapshots
+              : currentState.cardSnapshots,
           albums: Array.isArray(persisted.albums)
             ? persisted.albums.map((album) => ({
                 id: album.id,

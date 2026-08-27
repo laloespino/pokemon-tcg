@@ -28,6 +28,9 @@ export function PokemonPage() {
   const [error, setError] = useState<string | null>(null)
 
   const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
+  const saveCardSnapshots = useCollectionStore(
+    (state) => state.saveCardSnapshots
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -50,6 +53,7 @@ export function PokemonPage() {
         if (!cancelled) {
           setPokemon(pokemonResult)
           setCards(cardsResult)
+          saveCardSnapshots(cardsResult)
         }
       } catch (error) {
         console.error(error)
@@ -69,7 +73,7 @@ export function PokemonPage() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, saveCardSnapshots])
 
   const owned = cards.filter((card) => ownedCardIds.includes(card.id)).length
   const title = pokemon?.name ?? "Pokémon"

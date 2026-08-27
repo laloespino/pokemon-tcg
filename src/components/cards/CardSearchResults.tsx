@@ -3,6 +3,8 @@ import { useCollectionStore } from "@/store/collection-store"
 
 import type { PokemonCard } from "@/types/card"
 
+import { PokemonCardImage } from "./PokemonCardImage"
+
 type CardSearchResultsProps = {
   cards: PokemonCard[]
   selectedCardIds?: string[]
@@ -37,11 +39,10 @@ export function CardSearchResults({
             onClick={() => onToggleCard?.(card.id)}
             className="group relative overflow-hidden rounded-xl transition hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none"
           >
-            <img
+            <PokemonCardImage
               src={card.images.small}
               alt={card.name}
               className="block h-auto w-full rounded-xl"
-              loading="lazy"
             />
 
             {selected && (

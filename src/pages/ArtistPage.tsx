@@ -33,6 +33,9 @@ export function ArtistPage() {
     state.favoriteArtists.includes(name)
   )
   const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
+  const saveCardSnapshots = useCollectionStore(
+    (state) => state.saveCardSnapshots
+  )
 
   const toggleFavoriteArtist = useCollectionStore(
     (state) => state.toggleFavoriteArtist
@@ -50,6 +53,7 @@ export function ArtistPage() {
 
         if (!cancelled) {
           setCards(result)
+          saveCardSnapshots(result)
         }
       } catch (error) {
         console.error(error)
@@ -71,7 +75,7 @@ export function ArtistPage() {
     return () => {
       cancelled = true
     }
-  }, [name])
+  }, [name, saveCardSnapshots])
 
   const owned = cards.filter((card) => ownedCardIds.includes(card.id)).length
 

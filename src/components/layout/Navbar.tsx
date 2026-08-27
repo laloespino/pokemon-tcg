@@ -13,11 +13,6 @@ const links = [
     icon: Palette,
   },
   {
-    to: "/collection",
-    label: "Colección",
-    icon: Images,
-  },
-  {
     to: "/expansions",
     label: "Expansiones",
     icon: Layers3,
@@ -29,8 +24,15 @@ const links = [
   },
 ]
 
+const collectionLink = {
+  to: "/collection",
+  label: "Mi colección",
+  icon: Images,
+}
+
 export function Navbar() {
   const location = useLocation()
+  const CollectionIcon = collectionLink.icon
 
   return (
     <nav className="hidden items-center gap-1 md:flex">
@@ -60,6 +62,22 @@ export function Navbar() {
           {label}
         </NavLink>
       ))}
+
+      <NavLink
+        to={collectionLink.to}
+        className={({ isActive }) =>
+          [
+            "ml-3 flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-sm transition-all",
+            isActive
+              ? "border-primary bg-primary text-primary-foreground shadow-primary/20"
+              : "border-primary/20 bg-primary/10 text-primary hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground",
+          ].join(" ")
+        }
+      >
+        <CollectionIcon className="size-4" />
+
+        {collectionLink.label}
+      </NavLink>
     </nav>
   )
 }

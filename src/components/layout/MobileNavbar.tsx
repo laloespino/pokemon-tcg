@@ -13,12 +13,6 @@ const links = [
     icon: Palette,
   },
   {
-    to: "/collection",
-    label: "Colección",
-    icon: Images,
-    featured: true,
-  },
-  {
     to: "/expansions",
     label: "Expansiones",
     icon: Layers3,
@@ -27,6 +21,12 @@ const links = [
     to: "/albums",
     label: "Álbumes",
     icon: Folder,
+  },
+  {
+    to: "/collection",
+    label: "Colección",
+    icon: Images,
+    featured: true,
   },
 ]
 
@@ -76,7 +76,7 @@ export function MobileNavbar() {
                             "flex size-14 items-center justify-center rounded-full border bg-background shadow-lg",
                             active
                               ? "border-primary/30 bg-primary text-primary-foreground"
-                              : "border-border text-muted-foreground",
+                              : "border-primary/20 bg-primary/10 text-primary shadow-primary/10",
                           ].join(" ")
                         : ""
                     }

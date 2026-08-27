@@ -7,30 +7,23 @@ import type { PokemonCard } from "@/types/card"
 
 type PokemonCardGridProps = {
   cards: PokemonCard[]
+  showStatus?: boolean
 }
 
 export function PokemonCardGrid({
   cards,
+  showStatus = true,
 }: PokemonCardGridProps) {
-  const [selectedCardId, setSelectedCardId] =
-    useState<string | null>(null)
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
 
   return (
     <>
-      <div
-        className="
-          grid
-          grid-cols-3
-          gap-2
-          sm:grid-cols-4
-          md:grid-cols-5
-          lg:grid-cols-6
-        "
-      >
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
         {cards.map((card) => (
           <PokemonCardMini
             key={card.id}
             card={card}
+            showStatus={showStatus}
             onClick={() => setSelectedCardId(card.id)}
           />
         ))}

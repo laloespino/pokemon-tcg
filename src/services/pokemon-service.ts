@@ -11,7 +11,38 @@ import type {
 
 const TCGDEX_API = "https://api.tcgdex.net/v2/en"
 const POKEAPI = "https://pokeapi.co/api/v2"
+
+function cached<T>(
+  cache: Map<string, Promise<T>>,
+  key: string,
+  load: () => Promise<T>
+) {
+  const existing = cache.get(key)
+
+  if (existing) {
+    return existing
+  }
+
+  const promise = load().catch((error) => {
+    cache.delete(key)
+    throw error
+  })
+
+  cache.set(key, promise)
+
+  return promise
+}
+
+const allExpansionsCache = new Map<string, Promise<PokemonExpansion[]>>()
 const expansionCache = new Map<string, Promise<PokemonExpansion | null>>()
+const artistsCache = new Map<string, Promise<PokemonArtist[]>>()
+const pokedexGenerationCache = new Map<string, Promise<PokedexPokemon[]>>()
+const pokedexPokemonCache = new Map<string, Promise<PokedexPokemon | null>>()
+const artistCardsCache = new Map<string, Promise<PokemonCard[]>>()
+const pokemonCardsCache = new Map<string, Promise<PokemonCard[]>>()
+const cardSearchCache = new Map<string, Promise<PokemonCard[]>>()
+const cardCache = new Map<string, Promise<PokemonCard | null>>()
+const setCardsCache = new Map<string, Promise<PokemonCard[]>>()
 
 function imageUrl(image: string | undefined, quality: "low" | "high") {
   if (!image) {
@@ -211,11 +242,7 @@ function readCardsEndpoint(result: unknown) {
 }
 
 async function getExpansionCached(setId: string) {
-  if (!expansionCache.has(setId)) {
-    expansionCache.set(setId, getExpansionById(setId))
-  }
-
-  return expansionCache.get(setId)!
+  return getExpansionById(setId)
 }
 
 async function loadExpansionsForCards(cards: TCGdexCardResume[]) {
@@ -296,205 +323,218 @@ function mapExpansion(set: TCGdexSet | TCGdexSetResume): PokemonExpansion {
 }
 
 export async function getExpansions(): Promise<PokemonExpansion[]> {
-  const sets = await tcgdex.fetch("sets")
+  return cached(allExpansionsCache, "all", async () => {
+    const sets = await tcgdex.fetch("sets")
 
-  if (!sets) {
-    return []
-  }
+    if (!sets) {
+      return []
+    }
 
-  const expansions = await Promise.all(
-    sets.map(async (set) => {
-      try {
-        return (await getExpansionById(set.id)) ?? mapExpansion(set)
-      } catch (error) {
-        console.error(`Could not load set ${set.id}`, error)
-
-        return mapExpansion(set)
-      }
-    })
-  )
-
-  return expansions.sort(
-    (a, b) =>
-      (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "") ||
-      a.name.localeCompare(b.name)
-  )
+    return sets
+      .map(mapExpansion)
+      .sort(
+        (a, b) =>
+          (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "") ||
+          a.name.localeCompare(b.name)
+      )
+  })
 }
 
 export async function getExpansionById(
   setId: string
 ): Promise<PokemonExpansion | null> {
-  const set = await tcgdex.fetch("sets", setId)
+  return cached(expansionCache, setId, async () => {
+    const set = await tcgdex.fetch("sets", setId)
 
-  if (!set) {
-    return null
-  }
+    if (!set) {
+      return null
+    }
 
-  return mapExpansion(set)
+    return mapExpansion(set)
+  })
 }
 
 export async function getArtists(): Promise<PokemonArtist[]> {
-  const response = await fetch(`${TCGDEX_API}/illustrators`)
+  return cached(artistsCache, "all", async () => {
+    const response = await fetch(`${TCGDEX_API}/illustrators`)
 
-  if (!response.ok) {
-    throw new Error("Could not load illustrators")
-  }
+    if (!response.ok) {
+      throw new Error("Could not load illustrators")
+    }
 
-  const data: unknown = await response.json()
+    const data: unknown = await response.json()
 
-  if (!Array.isArray(data)) {
-    return []
-  }
+    if (!Array.isArray(data)) {
+      return []
+    }
 
-  return data
-    .filter((name): name is string => typeof name === "string")
-    .sort((a, b) => a.localeCompare(b))
-    .map((name) => ({
-      name,
-    }))
+    return data
+      .filter((name): name is string => typeof name === "string")
+      .sort((a, b) => a.localeCompare(b))
+      .map((name) => ({
+        name,
+      }))
+  })
 }
 
 export async function getPokedexGeneration(
   generation: number
 ): Promise<PokedexPokemon[]> {
-  const response = await fetch(`${POKEAPI}/generation/${generation}`)
+  return cached(pokedexGenerationCache, String(generation), async () => {
+    const response = await fetch(`${POKEAPI}/generation/${generation}`)
 
-  if (!response.ok) {
-    throw new Error(`Could not load generation ${generation}`)
-  }
+    if (!response.ok) {
+      throw new Error(`Could not load generation ${generation}`)
+    }
 
-  const data: PokeApiGenerationResponse = await response.json()
+    const data: PokeApiGenerationResponse = await response.json()
 
-  return data.pokemon_species
-    .map((species) => {
-      const id = pokemonIdFromSpeciesUrl(species.url)
+    return data.pokemon_species
+      .map((species) => {
+        const id = pokemonIdFromSpeciesUrl(species.url)
 
-      return {
-        id,
-        name: pokemonName(species.name),
-        sprite: pokemonSprite(id),
-        generation,
-      }
-    })
-    .filter((pokemon) => pokemon.id > 0)
-    .sort((a, b) => a.id - b.id)
+        return {
+          id,
+          name: pokemonName(species.name),
+          sprite: pokemonSprite(id),
+          generation,
+        }
+      })
+      .filter((pokemon) => pokemon.id > 0)
+      .sort((a, b) => a.id - b.id)
+  })
 }
 
 export async function getPokedexPokemonById(
   pokemonId: number
 ): Promise<PokedexPokemon | null> {
-  const response = await fetch(`${POKEAPI}/pokemon-species/${pokemonId}`)
+  return cached(pokedexPokemonCache, `id:${pokemonId}`, async () => {
+    const response = await fetch(`${POKEAPI}/pokemon-species/${pokemonId}`)
 
-  if (response.status === 404) {
-    return null
-  }
-
-  if (!response.ok) {
-    throw new Error(`Could not load Pokémon ${pokemonId}`)
-  }
-
-  const data: {
-    id: number
-    name: string
-    generation: {
-      url: string
+    if (response.status === 404) {
+      return null
     }
-  } = await response.json()
 
-  const generationId = Number.parseInt(
-    data.generation.url.match(/\/generation\/(\d+)\//)?.[1] ?? "0",
-    10
-  )
+    if (!response.ok) {
+      throw new Error(`Could not load Pokémon ${pokemonId}`)
+    }
 
-  return {
-    id: data.id,
-    name: pokemonName(data.name),
-    sprite: pokemonSprite(data.id),
-    generation: generationId,
-  }
+    const data: {
+      id: number
+      name: string
+      generation: {
+        url: string
+      }
+    } = await response.json()
+
+    const generationId = Number.parseInt(
+      data.generation.url.match(/\/generation\/(\d+)\//)?.[1] ?? "0",
+      10
+    )
+
+    return {
+      id: data.id,
+      name: pokemonName(data.name),
+      sprite: pokemonSprite(data.id),
+      generation: generationId,
+    }
+  })
 }
 
 export async function getPokedexPokemonByName(
   name: string
 ): Promise<PokedexPokemon | null> {
-  const response = await fetch(
-    `${POKEAPI}/pokemon-species/${encodeURIComponent(name.toLowerCase())}`
-  )
+  const normalizedName = name.trim().toLowerCase()
 
-  if (response.status === 404) {
-    return null
-  }
+  return cached(pokedexPokemonCache, `name:${normalizedName}`, async () => {
+    const response = await fetch(
+      `${POKEAPI}/pokemon-species/${encodeURIComponent(normalizedName)}`
+    )
 
-  if (!response.ok) {
-    throw new Error(`Could not load Pokémon ${name}`)
-  }
-
-  const data: {
-    id: number
-    name: string
-    generation: {
-      url: string
+    if (response.status === 404) {
+      return null
     }
-  } = await response.json()
 
-  const generationId = Number.parseInt(
-    data.generation.url.match(/\/generation\/(\d+)\//)?.[1] ?? "0",
-    10
-  )
+    if (!response.ok) {
+      throw new Error(`Could not load Pokémon ${name}`)
+    }
 
-  return {
-    id: data.id,
-    name: pokemonName(data.name),
-    sprite: pokemonSprite(data.id),
-    generation: generationId,
-  }
+    const data: {
+      id: number
+      name: string
+      generation: {
+        url: string
+      }
+    } = await response.json()
+
+    const generationId = Number.parseInt(
+      data.generation.url.match(/\/generation\/(\d+)\//)?.[1] ?? "0",
+      10
+    )
+
+    return {
+      id: data.id,
+      name: pokemonName(data.name),
+      sprite: pokemonSprite(data.id),
+      generation: generationId,
+    }
+  })
 }
 
 export async function getCardsByArtist(artist: string): Promise<PokemonCard[]> {
-  const response = await fetch(
-    `${TCGDEX_API}/illustrators/${encodeURIComponent(artist)}`
-  )
+  const normalizedArtist = artist.trim()
+  const cacheKey = normalizedArtist.toLowerCase()
 
-  if (!response.ok) {
-    throw new Error(`Could not load illustrator ${artist}`)
-  }
+  return cached(artistCardsCache, cacheKey, async () => {
+    const response = await fetch(
+      `${TCGDEX_API}/illustrators/${encodeURIComponent(normalizedArtist)}`
+    )
 
-  const result: unknown = await response.json()
-  const cards = readCardsEndpoint(result)
+    if (!response.ok) {
+      throw new Error(`Could not load illustrator ${artist}`)
+    }
 
-  if (cards.length === 0) {
-    return []
-  }
+    const result: unknown = await response.json()
+    const cards = readCardsEndpoint(result)
 
-  const cardResumes = cards.filter(isCardResume)
-  const expansionsBySetId = await loadExpansionsForCards(cardResumes)
+    if (cards.length === 0) {
+      return []
+    }
 
-  return sortCardsBySetRelease(
-    cardResumes.map((card) => mapCardResume(card, expansionsBySetId, artist)),
-    expansionsBySetId
-  )
+    const cardResumes = cards.filter(isCardResume)
+    const expansionsBySetId = await loadExpansionsForCards(cardResumes)
+
+    return sortCardsBySetRelease(
+      cardResumes.map((card) =>
+        mapCardResume(card, expansionsBySetId, normalizedArtist)
+      ),
+      expansionsBySetId
+    )
+  })
 }
 
 export async function getCardsByPokemonId(
   pokemonId: number
 ): Promise<PokemonCard[]> {
-  const response = await fetch(
-    `${TCGDEX_API}/dex-ids/${encodeURIComponent(pokemonId)}`
-  )
+  return cached(pokemonCardsCache, String(pokemonId), async () => {
+    const response = await fetch(
+      `${TCGDEX_API}/dex-ids/${encodeURIComponent(pokemonId)}`
+    )
 
-  if (!response.ok) {
-    throw new Error(`Could not load Pokémon ${pokemonId} cards`)
-  }
+    if (!response.ok) {
+      throw new Error(`Could not load Pokémon ${pokemonId} cards`)
+    }
 
-  const cardResumes = readCardsEndpoint(await response.json()).filter(
-    isCardResume
-  )
-  const expansionsBySetId = await loadExpansionsForCards(cardResumes)
+    const cardResumes = readCardsEndpoint(await response.json()).filter(
+      isCardResume
+    )
+    const expansionsBySetId = await loadExpansionsForCards(cardResumes)
 
-  return sortCardsBySetRelease(
-    cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
-    expansionsBySetId
-  )
+    return sortCardsBySetRelease(
+      cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
+      expansionsBySetId
+    )
+  })
 }
 
 export async function searchCards(query: string): Promise<PokemonCard[]> {
@@ -504,34 +544,36 @@ export async function searchCards(query: string): Promise<PokemonCard[]> {
     return []
   }
 
-  const response = await fetch(`${TCGDEX_API}/cards`)
+  return cached(cardSearchCache, normalizedQuery, async () => {
+    const response = await fetch(`${TCGDEX_API}/cards`)
 
-  if (!response.ok) {
-    throw new Error("Could not search cards")
-  }
+    if (!response.ok) {
+      throw new Error("Could not search cards")
+    }
 
-  const data: unknown = await response.json()
+    const data: unknown = await response.json()
 
-  if (!Array.isArray(data)) {
-    return []
-  }
+    if (!Array.isArray(data)) {
+      return []
+    }
 
-  const cardResumes = data
-    .filter(isCardResume)
-    .filter(
-      (card) =>
-        card.name.toLowerCase().includes(normalizedQuery) ||
-        card.id.toLowerCase().includes(normalizedQuery) ||
-        String(card.localId).includes(normalizedQuery)
+    const cardResumes = data
+      .filter(isCardResume)
+      .filter(
+        (card) =>
+          card.name.toLowerCase().includes(normalizedQuery) ||
+          card.id.toLowerCase().includes(normalizedQuery) ||
+          String(card.localId).includes(normalizedQuery)
+      )
+      .slice(0, 120)
+
+    const expansionsBySetId = await loadExpansionsForCards(cardResumes)
+
+    return sortCardsBySetRelease(
+      cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
+      expansionsBySetId
     )
-    .slice(0, 120)
-
-  const expansionsBySetId = await loadExpansionsForCards(cardResumes)
-
-  return sortCardsBySetRelease(
-    cardResumes.map((card) => mapCardResume(card, expansionsBySetId)),
-    expansionsBySetId
-  )
+  })
 }
 
 export async function searchCardsByMode(
@@ -569,19 +611,23 @@ export async function searchCardsByMode(
 }
 
 export async function getCardById(id: string): Promise<PokemonCard | null> {
-  const response = await fetch(`${TCGDEX_API}/cards/${encodeURIComponent(id)}`)
+  return cached(cardCache, id, async () => {
+    const response = await fetch(
+      `${TCGDEX_API}/cards/${encodeURIComponent(id)}`
+    )
 
-  if (response.status === 404) {
-    return null
-  }
+    if (response.status === 404) {
+      return null
+    }
 
-  if (!response.ok) {
-    throw new Error(`Could not load card ${id}`)
-  }
+    if (!response.ok) {
+      throw new Error(`Could not load card ${id}`)
+    }
 
-  const card: TCGdexCardResponse = await response.json()
+    const card: TCGdexCardResponse = await response.json()
 
-  return mapCard(card)
+    return mapCard(card)
+  })
 }
 
 export async function getCardsByIds(ids: string[]): Promise<PokemonCard[]> {
@@ -589,7 +635,8 @@ export async function getCardsByIds(ids: string[]): Promise<PokemonCard[]> {
     return []
   }
 
-  const results = await Promise.all(ids.map((id) => getCardById(id)))
+  const uniqueIds = Array.from(new Set(ids))
+  const results = await Promise.all(uniqueIds.map((id) => getCardById(id)))
 
   return results.filter((card): card is PokemonCard => card !== null)
 }
@@ -607,30 +654,32 @@ type TCGdexSetCardsResponse = {
 }
 
 export async function getCardsBySet(setId: string): Promise<PokemonCard[]> {
-  const response = await fetch(
-    `${TCGDEX_API}/sets/${encodeURIComponent(setId)}`
-  )
+  return cached(setCardsCache, setId, async () => {
+    const response = await fetch(
+      `${TCGDEX_API}/sets/${encodeURIComponent(setId)}`
+    )
 
-  if (!response.ok) {
-    throw new Error(`Could not load set ${setId}`)
-  }
+    if (!response.ok) {
+      throw new Error(`Could not load set ${setId}`)
+    }
 
-  const set: TCGdexSetCardsResponse = await response.json()
+    const set: TCGdexSetCardsResponse = await response.json()
 
-  return set.cards.map((card) => ({
-    id: card.id,
-    name: card.name,
-    number: String(card.localId),
+    return set.cards.map((card) => ({
+      id: card.id,
+      name: card.name,
+      number: String(card.localId),
 
-    set: {
-      id: set.id,
-      name: set.name,
-    },
+      set: {
+        id: set.id,
+        name: set.name,
+      },
 
-    images: {
-      small: imageUrl(card.image, "low"),
+      images: {
+        small: imageUrl(card.image, "low"),
 
-      large: imageUrl(card.image, "high"),
-    },
-  }))
+        large: imageUrl(card.image, "high"),
+      },
+    }))
+  })
 }

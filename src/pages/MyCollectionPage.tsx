@@ -13,7 +13,10 @@ import type { PokemonCard } from "@/types/card"
 
 export function MyCollectionPage() {
   const ownedCardIds = useCollectionStore((state) => state.ownedCardIds)
-  const wishlistCardIds = useCollectionStore((state) => state.wishlistCardIds)
+  const cardSnapshots = useCollectionStore((state) => state.cardSnapshots)
+  const saveCardSnapshots = useCollectionStore(
+    (state) => state.saveCardSnapshots
+  )
 
   const [cards, setCards] = useState<PokemonCard[]>([])
 
@@ -25,11 +28,14 @@ export function MyCollectionPage() {
     let cancelled = false
 
     async function loadCards() {
-      const collectionCardIds = Array.from(
-        new Set([...ownedCardIds, ...wishlistCardIds])
+      const snapshotCards = ownedCardIds
+        .map((cardId) => cardSnapshots[cardId])
+        .filter((card): card is PokemonCard => Boolean(card))
+      const missingCardIds = ownedCardIds.filter(
+        (cardId) => !cardSnapshots[cardId]
       )
 
-      if (collectionCardIds.length === 0) {
+      if (ownedCardIds.length === 0) {
         setCards([])
         setLoading(false)
 
@@ -37,13 +43,16 @@ export function MyCollectionPage() {
       }
 
       try {
-        setLoading(true)
+        setCards(snapshotCards)
+        setLoading(missingCardIds.length > 0)
         setError(null)
 
-        const result = await getCardsByIds(collectionCardIds)
+        const result =
+          missingCardIds.length > 0 ? await getCardsByIds(missingCardIds) : []
 
         if (!cancelled) {
-          setCards(result)
+          saveCardSnapshots(result)
+          setCards([...snapshotCards, ...result])
         }
       } catch (error) {
         console.error(error)
@@ -63,15 +72,13 @@ export function MyCollectionPage() {
     return () => {
       cancelled = true
     }
-  }, [ownedCardIds, wishlistCardIds])
-
-  const totalCards = new Set([...ownedCardIds, ...wishlistCardIds]).size
+  }, [cardSnapshots, ownedCardIds, saveCardSnapshots])
 
   return (
     <Page>
       <PageHeader
         title="Mi colección"
-        meta={`${ownedCardIds.length} en propiedad · ${wishlistCardIds.length} deseadas`}
+        meta={`${ownedCardIds.length} en propiedad`}
         align="center"
       />
 
@@ -79,16 +86,16 @@ export function MyCollectionPage() {
 
       {error && <PageState title={error} tone="danger" size="compact" />}
 
-      {!loading && !error && totalCards === 0 && (
+      {!loading && !error && ownedCardIds.length === 0 && (
         <PageState
           icon={<Images className="size-9" />}
           title="Tu colección está vacía"
-          description="Agrega cartas en propiedad o a tu lista de deseos."
+          description="Agrega cartas en propiedad para verlas aquí."
         />
       )}
 
       {!loading && !error && cards.length > 0 && (
-        <PokemonCardGrid cards={cards} />
+        <PokemonCardGrid cards={cards} showStatus={false} />
       )}
     </Page>
   )

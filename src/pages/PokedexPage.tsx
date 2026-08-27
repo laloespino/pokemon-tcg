@@ -157,11 +157,17 @@ export function PokedexPage() {
   )
 
   useEffect(() => {
+    if (view !== "list") {
+      return
+    }
+
     let cancelled = false
-    const missingPokemon = sortedPokemonByGeneration
+    const visiblePokemon = sortedPokemonByGeneration
       .flatMap((generation) => generation.pokemon)
-      .filter((item) => !pokemonStats[item.id])
       .slice(0, 40)
+    const missingPokemon = visiblePokemon.filter(
+      (item) => !pokemonStats[item.id]
+    )
 
     if (missingPokemon.length === 0) {
       return
@@ -205,7 +211,7 @@ export function PokedexPage() {
     return () => {
       cancelled = true
     }
-  }, [pokemonStats, sortedPokemonByGeneration])
+  }, [pokemonStats, sortedPokemonByGeneration, view])
 
   const viewButtonLabel =
     view === "list" ? "Cambiar a cuadrícula" : "Cambiar a lista"

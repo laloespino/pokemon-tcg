@@ -1,4 +1,4 @@
-const CACHE_NAME = "pokebinder-v1"
+const CACHE_NAME = "pokebinder-v2"
 const APP_SHELL = ["/", "/manifest.webmanifest", "/pokebinder.svg"]
 
 self.addEventListener("install", (event) => {
@@ -28,9 +28,24 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  const url = new URL(event.request.url)
+
+  if (url.origin !== self.location.origin) {
+    return
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request).catch(() => caches.match("/")))
+    return
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
+        if (!response.ok) {
+          return response
+        }
+
         const copy = response.clone()
 
         caches.open(CACHE_NAME).then((cache) => {
@@ -40,7 +55,9 @@ self.addEventListener("fetch", (event) => {
         return response
       })
       .catch(() =>
-        caches.match(event.request).then((response) => response || caches.match("/"))
+        caches
+          .match(event.request)
+          .then((response) => response || caches.match("/"))
       )
   )
 })

@@ -50,6 +50,10 @@ export function AlbumPage() {
   const setAlbumCardsInStore = useCollectionStore(
     (state) => state.setAlbumCards
   )
+  const cardSnapshots = useCollectionStore((state) => state.cardSnapshots)
+  const saveCardSnapshots = useCollectionStore(
+    (state) => state.saveCardSnapshots
+  )
   const album = albums.find((item) => item.id === albumId)
   const [albumCards, setAlbumCards] = useState<PokemonCard[]>([])
   const [editingName, setEditingName] = useState(false)
@@ -67,6 +71,13 @@ export function AlbumPage() {
     let cancelled = false
 
     async function loadAlbumCards() {
+      const snapshotCards =
+        album?.cardIds
+          .map((cardId) => cardSnapshots[cardId])
+          .filter((card): card is PokemonCard => Boolean(card)) ?? []
+      const missingCardIds =
+        album?.cardIds.filter((cardId) => !cardSnapshots[cardId]) ?? []
+
       if (!album || album.cardIds.length === 0) {
         setAlbumCards([])
         setLoadingAlbum(false)
@@ -74,11 +85,14 @@ export function AlbumPage() {
       }
 
       try {
-        setLoadingAlbum(true)
-        const cards = await getCardsByIds(album.cardIds)
+        setAlbumCards(snapshotCards)
+        setLoadingAlbum(missingCardIds.length > 0)
+        const cards =
+          missingCardIds.length > 0 ? await getCardsByIds(missingCardIds) : []
 
         if (!cancelled) {
-          setAlbumCards(cards)
+          saveCardSnapshots(cards)
+          setAlbumCards([...snapshotCards, ...cards])
         }
       } catch (error) {
         console.error(error)
@@ -94,7 +108,7 @@ export function AlbumPage() {
     return () => {
       cancelled = true
     }
-  }, [album])
+  }, [album, cardSnapshots, saveCardSnapshots])
 
   useEffect(() => {
     const trimmedQuery = query.trim()
@@ -115,6 +129,7 @@ export function AlbumPage() {
 
           if (!cancelled) {
             setResults(cards)
+            saveCardSnapshots(cards)
           }
         } catch (error) {
           console.error(error)
@@ -137,7 +152,7 @@ export function AlbumPage() {
     }, 350)
 
     return () => window.clearTimeout(timeout)
-  }, [mode, query, searchOpen])
+  }, [mode, query, saveCardSnapshots, searchOpen])
 
   function openSearch() {
     setDraftSelectedCardIds(album?.cardIds ?? [])

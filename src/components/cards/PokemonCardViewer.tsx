@@ -33,6 +33,8 @@ import { useCollectionStore } from "@/store/collection-store"
 
 import type { PokemonCard } from "@/types/card"
 
+import { PokemonCardImage } from "./PokemonCardImage"
+
 type PokemonCardViewerProps = {
   cards: PokemonCard[]
   initialCardId: string
@@ -121,6 +123,7 @@ export function PokemonCardViewer({
   const currentCard = briefCard
     ? (details[briefCard.id] ?? briefCard)
     : undefined
+  const saveCardSnapshot = useCollectionStore((state) => state.saveCardSnapshot)
 
   useEffect(() => {
     if (!briefCard) {
@@ -140,6 +143,7 @@ export function PokemonCardViewer({
         const card = await getCardById(briefCard.id)
 
         if (!cancelled && card) {
+          saveCardSnapshot(card)
           setDetails((previous) => ({
             ...previous,
             [briefCard.id]: card,
@@ -159,7 +163,7 @@ export function PokemonCardViewer({
     return () => {
       cancelled = true
     }
-  }, [briefCard, details])
+  }, [briefCard, details, saveCardSnapshot])
 
   const owned = useCollectionStore((state) =>
     currentCard ? state.ownedCardIds.includes(currentCard.id) : false
@@ -172,6 +176,24 @@ export function PokemonCardViewer({
   const toggleWishlistCard = useCollectionStore(
     (state) => state.toggleWishlistCard
   )
+
+  function handleToggleOwnedCard() {
+    if (!currentCard) {
+      return
+    }
+
+    saveCardSnapshot(currentCard)
+    toggleOwnedCard(currentCard.id)
+  }
+
+  function handleToggleWishlistCard() {
+    if (!currentCard) {
+      return
+    }
+
+    saveCardSnapshot(currentCard)
+    toggleWishlistCard(currentCard.id)
+  }
 
   function previousCard() {
     setCurrentIndex((current) =>
@@ -361,7 +383,7 @@ export function PokemonCardViewer({
               <div className="flex items-center gap-2">
                 <Button
                   variant={wanted ? "secondary" : "ghost"}
-                  onClick={() => toggleWishlistCard(currentCard.id)}
+                  onClick={handleToggleWishlistCard}
                   size="icon-sm"
                   className="rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white sm:size-10"
                   aria-label={
@@ -378,7 +400,7 @@ export function PokemonCardViewer({
 
                 <Button
                   variant={owned ? "secondary" : "default"}
-                  onClick={() => toggleOwnedCard(currentCard.id)}
+                  onClick={handleToggleOwnedCard}
                   size="icon-sm"
                   className="rounded-full sm:size-10"
                   aria-label={
@@ -395,17 +417,12 @@ export function PokemonCardViewer({
             </div>
 
             <div className="mx-auto w-full max-w-[280px] px-4 sm:max-w-[390px]">
-              {image ? (
-                <img
-                  src={image}
-                  alt={currentCard.name}
-                  className="block h-auto w-full rounded-xl object-contain drop-shadow-2xl sm:rounded-2xl"
-                />
-              ) : (
-                <div className="flex aspect-[245/337] items-center justify-center rounded-3xl bg-white/10 text-sm text-white/60">
-                  Imagen no disponible
-                </div>
-              )}
+              <PokemonCardImage
+                src={image}
+                alt={currentCard.name}
+                className="block h-auto w-full rounded-xl object-contain drop-shadow-2xl sm:rounded-2xl"
+                placeholderClassName="bg-white/10 text-white/60"
+              />
             </div>
 
             {cards.length > 1 && (

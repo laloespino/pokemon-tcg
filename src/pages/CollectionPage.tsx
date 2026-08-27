@@ -32,6 +32,9 @@ export function CollectionPage() {
   const toggleFavoriteExpansion = useCollectionStore(
     (state) => state.toggleFavoriteExpansion
   )
+  const saveCardSnapshots = useCollectionStore(
+    (state) => state.saveCardSnapshots
+  )
 
   const [cards, setCards] = useState<PokemonCard[]>([])
   const [expansion, setExpansion] = useState<PokemonExpansion | null>(null)
@@ -61,6 +64,7 @@ export function CollectionPage() {
         if (!cancelled) {
           setExpansion(expansionResult)
           setCards(cardsResult)
+          saveCardSnapshots(cardsResult)
         }
       } catch (error) {
         console.error(error)
@@ -80,7 +84,7 @@ export function CollectionPage() {
     return () => {
       cancelled = true
     }
-  }, [requestedSetId])
+  }, [requestedSetId, saveCardSnapshots])
 
   if (!requestedSetId) {
     return (

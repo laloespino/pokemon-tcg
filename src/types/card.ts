@@ -28,7 +28,7 @@ export type PokemonCard = {
   }
 
   images: {
-    small: string
-    large: string
+    small?: string
+    large?: string
   }
 }

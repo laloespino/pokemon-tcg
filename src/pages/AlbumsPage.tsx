@@ -3,9 +3,18 @@ import type { FormEvent } from "react"
 import { useNavigate } from "react-router-dom"
 import { Folder, Plus, Trash2 } from "lucide-react"
 
+import { AlbumCover } from "@/components/albums/AlbumCover"
 import { Page, PageHeader, PageState } from "@/components/layout/PageLayout"
 import { Button } from "@/components/ui/button"
-import { SearchInput } from "@/components/ui/search-input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { useCollectionStore } from "@/store/collection-store"
 
 export function AlbumsPage() {
@@ -15,19 +24,36 @@ export function AlbumsPage() {
   const createAlbum = useCollectionStore((state) => state.createAlbum)
   const deleteAlbum = useCollectionStore((state) => state.deleteAlbum)
   const [name, setName] = useState("")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [albumToDelete, setAlbumToDelete] = useState<
+    (typeof albums)[number] | null
+  >(null)
 
   function createNewAlbum() {
     const trimmedName = name.trim()
-    const albumName = trimmedName || `Álbum ${albums.length + 1}`
 
-    const albumId = createAlbum(albumName)
+    if (!trimmedName) {
+      return
+    }
+
+    const albumId = createAlbum(trimmedName)
     setName("")
+    setCreateOpen(false)
     navigate(`/albums/${albumId}`)
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
     createNewAlbum()
+  }
+
+  function confirmDeleteAlbum() {
+    if (!albumToDelete) {
+      return
+    }
+
+    deleteAlbum(albumToDelete.id)
+    setAlbumToDelete(null)
   }
 
   return (
@@ -39,7 +65,7 @@ export function AlbumsPage() {
           <Button
             type="button"
             size="icon-lg"
-            onClick={createNewAlbum}
+            onClick={() => setCreateOpen(true)}
             className="size-11 rounded-full"
             aria-label="Crear álbum"
           >
@@ -48,17 +74,85 @@ export function AlbumsPage() {
         }
       />
 
-      <form
-        onSubmit={handleSubmit}
-        className="sticky top-14 z-30 bg-background/95 py-2 backdrop-blur"
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open)
+
+          if (!open) {
+            setName("")
+          }
+        }}
       >
-        <SearchInput
-          value={name}
-          onChange={setName}
-          placeholder="Buscar álbum"
-          sticky={false}
-        />
-      </form>
+        <DialogContent>
+          <form onSubmit={handleSubmit} className="grid gap-5">
+            <DialogHeader>
+              <DialogTitle>Nuevo álbum</DialogTitle>
+              <DialogDescription>
+                Elige un nombre para organizar tus cartas.
+              </DialogDescription>
+            </DialogHeader>
+
+            <Input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Nombre del álbum"
+              className="h-11"
+              autoFocus
+            />
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setCreateOpen(false)}
+              >
+                Cancelar
+              </Button>
+
+              <Button type="submit" disabled={!name.trim()}>
+                Crear
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(albumToDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAlbumToDelete(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar álbum</DialogTitle>
+            <DialogDescription>
+              Esta acción eliminará “{albumToDelete?.name}” de tus álbumes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setAlbumToDelete(null)}
+            >
+              Cancelar
+            </Button>
+
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDeleteAlbum}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {albums.length === 0 ? (
         <PageState
@@ -86,7 +180,7 @@ export function AlbumsPage() {
                   className="flex aspect-square items-center justify-center rounded-2xl bg-muted text-muted-foreground"
                   aria-label={`Abrir ${album.name}`}
                 >
-                  <Folder className="size-6" />
+                  <AlbumCover name={album.name} />
                 </button>
 
                 <button
@@ -115,7 +209,7 @@ export function AlbumsPage() {
                   variant="ghost"
                   size="icon-sm"
                   aria-label={`Eliminar ${album.name}`}
-                  onClick={() => deleteAlbum(album.id)}
+                  onClick={() => setAlbumToDelete(album)}
                 >
                   <Trash2 className="size-4" />
                 </Button>
