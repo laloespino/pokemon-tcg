@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#111715" />
+    <title>PokéBinder sin conexión</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        min-height: 100dvh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        padding: calc(24px + env(safe-area-inset-top))
+          calc(20px + env(safe-area-inset-right))
+          calc(24px + env(safe-area-inset-bottom))
+          calc(20px + env(safe-area-inset-left));
+        background: #111715;
+        color: #f9fafb;
+      }
+
+      main {
+        max-width: 360px;
+        text-align: center;
+      }
+
+      img {
+        width: 72px;
+        height: 72px;
+        margin-bottom: 18px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+      }
+
+      p {
+        margin: 0;
+        color: rgba(249, 250, 251, 0.72);
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/pokebinder.svg" alt="" />
+      <h1>Sin conexión</h1>
+      <p>Abre PokéBinder cuando vuelvas a tener internet.</p>
+    </main>
+  </body>
+</html>

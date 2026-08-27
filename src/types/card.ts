@@ -34,5 +34,9 @@ export type PokemonCard = {
   images: {
     small?: string
     large?: string
+    fallbacks?: {
+      small?: string[]
+      large?: string[]
+    }
   }
 }

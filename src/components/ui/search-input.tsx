@@ -27,7 +27,8 @@ export function SearchInput({
     <div
       className={cn(
         "relative",
-        sticky && "sticky top-14 z-30 bg-background/95 py-2 backdrop-blur",
+        sticky &&
+          "top-app-header sticky z-30 -mx-3 bg-background/95 px-3 py-2 backdrop-blur sm:-mx-6 sm:px-6",
         className
       )}
     >

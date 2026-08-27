@@ -1,9 +1,20 @@
-const CACHE_NAME = "pokebinder-v2"
-const APP_SHELL = ["/", "/manifest.webmanifest", "/pokebinder.svg"]
+const CACHE_NAME = "pokebinder-v3"
+const APP_SHELL = [
+  "/",
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/pokebinder.svg",
+]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches
+      .open(CACHE_NAME)
+      .then((cache) =>
+        cache.addAll(
+          APP_SHELL.map((url) => new Request(url, { cache: "reload" }))
+        )
+      )
   )
   self.skipWaiting()
 })
@@ -35,7 +46,36 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")))
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches
+          .match(event.request)
+          .then((response) => response || caches.match("/offline.html"))
+      )
+    )
+    return
+  }
+
+  if (url.pathname.startsWith("/assets/")) {
+    event.respondWith(
+      caches.match(event.request).then(
+        (cachedResponse) =>
+          cachedResponse ||
+          fetch(event.request).then((response) => {
+            if (!response.ok) {
+              return response
+            }
+
+            const copy = response.clone()
+
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, copy)
+            })
+
+            return response
+          })
+      )
+    )
     return
   }
 
@@ -57,7 +97,7 @@ self.addEventListener("fetch", (event) => {
       .catch(() =>
         caches
           .match(event.request)
-          .then((response) => response || caches.match("/"))
+          .then((response) => response || caches.match("/offline.html"))
       )
   )
 })

@@ -148,7 +148,7 @@ export function PageSection({
   className,
 }: PageSectionProps) {
   return (
-    <section className={cn("scroll-mt-4", className)}>
+    <section className={cn("app-scroll-mt", className)}>
       {(title || meta) && (
         <div className="mb-4 flex items-end justify-between gap-4">
           {title && <h2 className="text-xl font-bold">{title}</h2>}

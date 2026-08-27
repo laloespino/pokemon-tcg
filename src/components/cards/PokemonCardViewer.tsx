@@ -273,6 +273,9 @@ export function PokemonCardViewer({
   }
 
   const image = currentCard.images.large || currentCard.images.small
+  const imageFallbacks = currentCard.images.large
+    ? currentCard.images.fallbacks?.large
+    : currentCard.images.fallbacks?.small
   const pricing = currentCard.pricing
 
   const attributes: AttributeItem[] = []
@@ -430,6 +433,7 @@ export function PokemonCardViewer({
             <div className="mx-auto w-full max-w-[280px] px-4 sm:max-w-[390px]">
               <PokemonCardImage
                 src={image}
+                fallbackSrcs={imageFallbacks}
                 alt={currentCard.name}
                 className="block h-auto w-full rounded-xl object-contain drop-shadow-2xl sm:rounded-2xl"
                 placeholderClassName="bg-white/10 text-white/60"

@@ -5,21 +5,10 @@ import { MobileNavbar } from "./MobileNavbar"
 
 export function AppLayout() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="app-min-h bg-background">
       <Header />
 
-      <main
-        className="
-          mx-auto
-          w-full
-          max-w-7xl
-          safe-x
-          py-4
-          pb-24
-          sm:py-6
-          md:pb-6
-        "
-      >
+      <main className="safe-x pb-mobile-nav mx-auto w-full max-w-7xl py-4 sm:py-6">
         <Outlet />
       </main>
 

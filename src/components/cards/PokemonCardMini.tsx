@@ -36,6 +36,7 @@ export function PokemonCardMini({
     >
       <PokemonCardImage
         src={card.images.small}
+        fallbackSrcs={card.images.fallbacks?.small}
         alt={card.name}
         className="block h-auto w-full rounded-xl"
       />
