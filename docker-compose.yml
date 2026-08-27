@@ -1,0 +1,9 @@
+services:
+  pokebinder:
+    build:
+      context: .
+      args:
+        VITE_BASE_PATH: /
+    restart: unless-stopped
+    expose:
+      - "80"
